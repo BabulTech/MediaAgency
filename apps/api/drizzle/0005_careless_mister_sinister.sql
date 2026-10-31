@@ -1,0 +1,1 @@
+ALTER TABLE "rate_cards" ADD COLUMN "previous_version_id" uuid;

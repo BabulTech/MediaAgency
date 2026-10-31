@@ -32,6 +32,7 @@ export const rateCards = pgTable('rate_cards', {
   name: text('name').notNull(), kind: text('kind').notNull(), currency: text('currency').notNull().default('PKR'),
   effectiveFrom: date('effective_from').notNull(), effectiveTo: date('effective_to'),
   status: text('status').notNull().default('draft'), version: integer('version').notNull().default(1),
+  previousVersionId: uuid('previous_version_id'),
   isSample: boolean('is_sample').notNull().default(false),
 });
 

@@ -62,8 +62,8 @@ async function seed(db: Db) {
 
 const READ = ['media.read', 'ratecards.read'];
 const PRICE = [...READ, 'pricing.calculate'];
-const MANAGE = [...PRICE, 'media.write'];
-const ADMIN = [...MANAGE, 'users.read', 'users.write', 'audit.read'];
+const MANAGE = [...PRICE, 'media.write', 'ratecards.write'];
+const ADMIN = [...MANAGE, 'ratecards.approve', 'users.read', 'users.write', 'audit.read'];
 export const DEFAULT_ROLES: [string, string, string[]][] = [
   ['super_admin', 'Super Administrator', ADMIN], ['agency_admin', 'Agency Administrator', ADMIN],
   ['director', 'Chief Executive / Director', [...PRICE, 'users.read', 'audit.read']],

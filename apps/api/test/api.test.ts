@@ -100,3 +100,46 @@ describe('access control', () => {
     expect(await outlet('OTHER')).toBeUndefined();
   });
 });
+
+describe('rate cards', () => {
+  const rule = { formatCode: 'display', unit: 'per_sq_cm', rate: '100' };
+  const draft = async () => {
+    const o = await outlet('SAMPLE-DAILY');
+    return (await post('/v1/rate-cards', { outletId: o.id, name: 'Card', kind: 'selling', effectiveFrom: '2027-01-01' })).json();
+  };
+  it('publishes only with rules, then locks the card', async () => {
+    const c = await draft();
+    expect((await post(`/v1/rate-cards/${c.id}/publish`, {})).status).toBe(409);
+    expect((await post(`/v1/rate-cards/${c.id}/rules`, rule)).status).toBe(201);
+    expect((await post(`/v1/rate-cards/${c.id}/publish`, {})).status).toBe(201);
+    expect((await post(`/v1/rate-cards/${c.id}/rules`, rule)).status).toBe(409);
+  });
+  it('closes the old version without changing its rules', async () => {
+    const c = await draft();
+    await post(`/v1/rate-cards/${c.id}/rules`, rule);
+    await post(`/v1/rate-cards/${c.id}/publish`, {});
+    const n = await (await post(`/v1/rate-cards/${c.id}/new-version`, { effectiveFrom: '2027-06-01' })).json();
+    expect(n.version).toBe(2);
+    await post(`/v1/rate-cards/${n.id}/publish`, {});
+    const old = await (await fetch(`${url}/v1/rate-cards/${c.id}`, { headers: headers(token) })).json();
+    expect(old.card.effectiveTo).toBe('2027-05-31');
+    expect(old.rules[0].rate).toBe('100.0000');
+    expect(old.history.map((h: any) => h.action)).toContain('publish');
+  });
+  it('rejects a whole import if one row is bad', async () => {
+    const c = await draft();
+    const res = await post(`/v1/rate-cards/${c.id}/rules/bulk`, { rules: [rule, { unit: 'nonsense', rate: 'x' }] });
+    expect(res.status).toBe(400);
+    expect((await res.json()).errors[0].row).toBe(2);
+    const got = await (await fetch(`${url}/v1/rate-cards/${c.id}`, { headers: headers(token) })).json();
+    expect(got.rules.length).toBe(0);
+  });
+  it('treats blank optional cells as empty', async () => {
+    const c = await draft();
+    expect((await post(`/v1/rate-cards/${c.id}/rules`, { ...rule, multiplier: '', minimumCharge: '', timeBandCode: '' })).status).toBe(201);
+  });
+  it('blocks read-only users from editing', async () => {
+    const c = await draft();
+    expect((await post(`/v1/rate-cards/${c.id}/rules`, rule, 'ro@example.com')).status).toBe(403);
+  });
+});
