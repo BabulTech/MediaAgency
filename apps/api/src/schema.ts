@@ -56,7 +56,7 @@ export const auditLogs = pgTable('audit_logs', {
 });
 
 export const users = pgTable('users', {
-  id: id(), tenantId: tenantId(), authId: uuid('auth_id').unique(), email: text('email').notNull().unique(), name: text('name').notNull(),
+  id: id(), tenantId: tenantId(), authId: uuid('auth_id').unique(), customerId: uuid('customer_id'), organizationId: uuid('organization_id'), email: text('email').notNull().unique(), name: text('name').notNull(),
   active: boolean('active').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });

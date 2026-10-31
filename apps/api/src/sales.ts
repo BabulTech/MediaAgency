@@ -150,6 +150,34 @@ export class SalesController {
     });
   }
 
+  /** Portal views select fields by hand: supplier costs and rate snapshots must never reach a customer. */
+  @Perm('portal.customer') @Get('portal/customer')
+  async portalCustomer(@Req() req: any) {
+    const { tenantId, customerId } = req.user;
+    const mine = <T extends { tenantId: any; customerId: any }>(t: T) => and(eq(t.tenantId, tenantId), eq(t.customerId, customerId));
+    const [quotations, orders, invoices] = await Promise.all([
+      this.db.select({ id: s.quotations.id, number: s.quotations.number, status: s.quotations.status, total: s.quotations.total, validUntil: s.quotations.validUntil }).from(s.quotations)
+        .where(and(mine(s.quotations), inArray(s.quotations.status, ['sent', 'accepted', 'rejected']))).orderBy(desc(s.quotations.createdAt)),
+      this.db.select({ id: s.orders.id, number: s.orders.number, status: s.orders.status, total: s.orders.total }).from(s.orders).where(mine(s.orders)).orderBy(desc(s.orders.createdAt)),
+      this.db.select({ id: s.customerInvoices.id, number: s.customerInvoices.number, dueDate: s.customerInvoices.dueDate, total: s.customerInvoices.total }).from(s.customerInvoices).where(mine(s.customerInvoices)),
+    ]);
+    const orderIds = orders.map((o) => o.id);
+    const placements = orderIds.length ? await this.db.select({ id: s.placements.id, orderId: s.placements.orderId, formatCode: s.placements.formatCode, date: s.placements.date, status: s.placements.status }).from(s.placements).where(inArray(s.placements.orderId, orderIds)) : [];
+    const ids = invoices.map((i) => i.id);
+    const paid = ids.length ? await this.db.select({ invoiceId: s.customerPaymentAllocations.invoiceId, amount: s.customerPaymentAllocations.amount }).from(s.customerPaymentAllocations).where(inArray(s.customerPaymentAllocations.invoiceId, ids)) : [];
+    const credits = ids.length ? await this.db.select({ invoiceId: s.customerCreditNotes.invoiceId, amount: s.customerCreditNotes.amount }).from(s.customerCreditNotes).where(inArray(s.customerCreditNotes.invoiceId, ids)) : [];
+    return { quotations, orders, placements, invoices: invoices.map((i) => ({ ...i, balance: sumMoney([i.total, ...[...paid, ...credits].filter((x) => x.invoiceId === i.id).map((x) => `-${x.amount}`)]) })) };
+  }
+
+  private async ownQuotation(req: any, id: string) {
+    const q = await this.quotation(req.user.tenantId, id);
+    if (q.customerId !== req.user.customerId) throw new NotFoundException({ code: 'NOT_FOUND' });
+  }
+  @Perm('portal.customer') @Post('portal/customer/quotations/:id/accept')
+  async portalAccept(@Req() req: any, @Param('id') id: string) { await this.ownQuotation(req, id); const o = await this.accept(req, id); return { id: o.id, number: o.number }; }
+  @Perm('portal.customer') @Post('portal/customer/quotations/:id/reject')
+  async portalReject(@Req() req: any, @Param('id') id: string) { await this.ownQuotation(req, id); const q = await this.reject(req, id); return { id: q.id, status: q.status }; }
+
   @Perm('sales.read') @Get('orders')
   orders(@Req() req: any) {
     return this.db.select({ order: s.orders, customerName: s.customers.name }).from(s.orders)

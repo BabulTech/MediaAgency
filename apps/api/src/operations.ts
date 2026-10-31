@@ -115,6 +115,26 @@ export class OperationsController {
     });
   }
 
+  /** Only the supplier's own outlets, and never the customer's selling price. */
+  private supplierRows(req: any) {
+    return this.db.select({
+      id: s.supplierBookings.id, number: s.supplierBookings.number, status: s.supplierBookings.status, requestedDate: s.supplierBookings.requestedDate,
+      supplierReference: s.supplierBookings.supplierReference, purchasePrice: s.supplierBookings.purchasePrice, formatCode: s.placements.formatCode, outletName: s.mediaOutlets.name,
+    }).from(s.supplierBookings).innerJoin(s.placements, eq(s.supplierBookings.placementId, s.placements.id))
+      .innerJoin(s.mediaOutlets, eq(s.supplierBookings.outletId, s.mediaOutlets.id))
+      .where(and(eq(s.supplierBookings.tenantId, req.user.tenantId), eq(s.mediaOutlets.organizationId, req.user.organizationId)));
+  }
+  @Perm('portal.supplier') @Get('portal/supplier/bookings')
+  portalBookings(@Req() req: any) { return this.supplierRows(req); }
+
+  @Perm('portal.supplier') @Post('portal/supplier/bookings/:id/respond')
+  async portalRespond(@Req() req: any, @Param('id') id: string, @Body() body: unknown) {
+    const { status, supplierReference } = parse(z.object({ status: z.enum(['confirmed', 'rejected', 'reschedule_requested']), supplierReference: z.string().trim().max(100).optional() }), body);
+    if (!(await this.supplierRows(req)).some((b) => b.id === uuid(id))) throw new NotFoundException({ code: 'NOT_FOUND' });
+    const b = await this.setStatus(req, id, { status, supplierReference });
+    return { id: b.id, status: b.status };
+  }
+
   @Perm('ops.write') @Post('placements/:id/upload-url')
   async uploadUrl(@Req() req: any, @Param('id') id: string, @Body() body: unknown) {
     const p = await this.placement(req.user.tenantId, id);

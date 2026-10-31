@@ -72,7 +72,7 @@ export const DEFAULT_ROLES: [string, string, string[]][] = [
   ['broadcast_booking', 'TV/Radio Booking Officer', [...PRICE, 'ops.write']], ['creative_manager', 'Creative/Artwork Manager', [...READ, 'ops.write', 'ops.verify']],
   ['finance_manager', 'Finance Manager', [...PRICE, 'finance.read', 'finance.write', 'finance.approve']], ['accountant', 'Accountant', [...PRICE, 'finance.read', 'finance.write']],
   ['operations', 'Operations Executive', [...READ, 'ops.write', 'ops.verify']], ['read_only', 'Reporting/Read-Only User', READ],
-  ['customer_portal', 'Customer Portal User', []], ['supplier_portal', 'Media Supplier Portal User', []],
+  ['customer_portal', 'Customer Portal User', ['portal.customer']], ['supplier_portal', 'Media Supplier Portal User', ['portal.supplier']],
 ];
 
 /** Adds default roles and the first administrator to a tenant that has none. */

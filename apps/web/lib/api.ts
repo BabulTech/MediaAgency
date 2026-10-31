@@ -16,6 +16,8 @@ export interface Customer { id: string; number: string; name: string; type: stri
 export interface Contact { id: string; name: string; phone: string | null; email: string | null }
 export interface Campaign { id: string; name: string; startDate: string; endDate: string; budget: string | null; status: string }
 
+export const isPortalOnly = (me: Me | null) => !!me && me.permissions.some((p) => p.startsWith('portal.')) && !me.permissions.includes('sales.read');
+
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const { data } = await supabase.auth.getSession();
   const auth: Record<string, string> = data.session ? { Authorization: `Bearer ${data.session.access_token}` } : {};

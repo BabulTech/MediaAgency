@@ -31,7 +31,7 @@
 | 4 Booking and operations | Mostly done: supplier bookings, artwork versions, proofs, private file storage. No booking PDFs, TV calendar, schedule discrepancy flags or spec validation |
 | 5 Finance | Mostly done: invoices, supplier bills, payments, advances, credit notes, aging, quoted, committed and actual margin. No PDFs, refunds, ledgers, consolidated tax rules or withholding |
 | 6 Reporting | Partial: one dashboard, 5 of 30 reports, CSV export, calendar list, live alerts. No role dashboards, charts, report builder, email, read status or scheduled jobs |
-| 7 Portals | Not started: customer portal, supplier portal |
+| 7 Portals | Partial: customer view with quotation accept and reject; supplier booking responses. No uploads, requests, bills or PDF downloads in portals |
 
 Rule 9.3 note: rule stacking, rule-level premiums and tax rules are not in the engine yet. Radio, digital and outdoor calculators are also outstanding.
 

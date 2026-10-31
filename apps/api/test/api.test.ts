@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppModule } from '../src/app.module';
 import { IdentityProvider } from '../src/auth';
 import { Db, openDb } from '../src/db';
-import { auditLogs, mediaOutlets, pricingSnapshots, tenants, users } from '../src/schema';
+import { auditLogs, mediaOrganizations, mediaOutlets, pricingSnapshots, tenants, users } from '../src/schema';
 
 let app: INestApplication; let url: string; let db: Db;
 let token = 'admin@example.com';
@@ -85,7 +85,8 @@ describe('access control', () => {
     expect((await post('/v1/outlets', {}, 'ro@example.com')).status).toBe(403);
   });
   it('gives portal users nothing internal', async () => {
-    await user('cust@example.com', ['customer_portal']);
+    const pc = await (await post('/v1/customers', { name: 'Portal seed' })).json();
+    await post('/v1/users', { email: 'cust@example.com', name: 'U', password: 'long-password-1', roleCodes: ['customer_portal'], customerId: pc.id });
     expect((await get('/v1/outlets', 'cust@example.com')).status).toBe(403);
   });
   it('cuts access on deactivate', async () => {
@@ -399,5 +400,49 @@ describe('reports and dashboard', () => {
   });
   it('keeps portal users out', async () => {
     expect((await fetch(`${url}/v1/dashboard`, { headers: headers('cust@example.com') })).status).toBe(403);
+  });
+});
+
+describe('portals', () => {
+  const get = (p: string, t: string) => fetch(url + p, { headers: headers(t) });
+  const sell = async (name: string) => {
+    const cust = await (await post('/v1/customers', { name })).json();
+    const q = await (await post('/v1/quotations', { customerId: cust.id, validUntil: '2026-12-31' })).json();
+    const o = await outlet('SAMPLE-TV');
+    await post(`/v1/quotations/${q.id}/lines`, { outletId: o.id, formatCode: 'tvc', date: '2026-11-02', quantity: { durationSeconds: 10, spots: 1 } });
+    for (const step of ['submit', 'send']) await post(`/v1/quotations/${q.id}/${step}`, {});
+    return { cust, q, orgId: o.organizationId };
+  };
+  const account = (email: string, role: string, link: object) => post('/v1/users', { email, name: 'P', password: 'long-password-1', roleCodes: [role], ...link });
+
+  it('requires a link for portal accounts', async () => {
+    expect((await account('nolink@example.com', 'customer_portal', {})).status).toBe(400);
+  });
+  it('shows a customer only their own records, without costs', async () => {
+    const a = await sell('Portal A'); const b = await sell('Portal B');
+    await account('a@portal.test', 'customer_portal', { customerId: a.cust.id });
+    const view = await get('/v1/portal/customer', 'a@portal.test');
+    const text = await view.text();
+    expect(JSON.parse(text).quotations.map((q: any) => q.id)).toEqual([a.q.id]);
+    expect(text).not.toMatch(/supplierCost|snapshot/);
+    expect((await post(`/v1/portal/customer/quotations/${b.q.id}/accept`, {}, 'a@portal.test')).status).toBe(404);
+    expect((await post(`/v1/portal/customer/quotations/${a.q.id}/accept`, {}, 'a@portal.test')).status).toBe(201);
+    expect((await get('/v1/customers', 'a@portal.test')).status).toBe(403);
+  });
+  it('limits a supplier to its own bookings and hides selling prices', async () => {
+    const { q, orgId } = await sell('Portal C');
+    const order = await (await post(`/v1/quotations/${q.id}/accept`, {})).json();
+    const d = await (await get(`/v1/orders/${order.id}`, token)).json();
+    const b = await (await post(`/v1/placements/${d.placements[0].placement.id}/bookings`, {})).json();
+    await account('s@portal.test', 'supplier_portal', { organizationId: orgId });
+    const other = await (await db.insert(mediaOrganizations).values({ tenantId: (await outlet('SAMPLE-TV')).tenantId, code: 'OTHER-ORG', name: 'Other' }).returning())[0];
+    await account('s2@portal.test', 'supplier_portal', { organizationId: other.id });
+    const text = await (await get('/v1/portal/supplier/bookings', 's@portal.test')).text();
+    expect(text).toContain(b.number); expect(text).not.toMatch(/snapshot|"net"/);
+    expect(await (await get('/v1/portal/supplier/bookings', 's2@portal.test')).json()).toEqual([]);
+    const url2 = `/v1/portal/supplier/bookings/${b.id}/respond`;
+    expect((await post(url2, { status: 'confirmed' }, 's2@portal.test')).status).toBe(404);
+    expect((await post(url2, { status: 'executed' }, 's@portal.test')).status).toBe(400);
+    expect((await post(url2, { status: 'confirmed' }, 's@portal.test')).status).toBe(201);
   });
 });

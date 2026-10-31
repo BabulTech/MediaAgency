@@ -126,3 +126,10 @@ select.input option { background:var(--surface); color:var(--text); }
 .bell span { position:absolute; top:-6px; inset-inline-end:-6px; min-width:18px; padding:0 4px; border-radius:9px; background:var(--danger); color:var(--bg); font-size:.7rem; line-height:18px; text-align:center; }
 .table { width:100%; border-collapse:collapse; font-size:.9rem; }
 .table th, .table td { padding:8px; text-align:start; border-bottom:1px solid var(--line); white-space:nowrap; }
+
+.moremenu { display:none; }
+@media (max-width:760px) {
+  .bottomnav button { display:grid; justify-items:center; gap:2px; padding:8px 4px; font:inherit; font-size:.72rem; color:var(--muted); background:none; border:0; min-height:56px; }
+  .moremenu { display:grid; grid-template-columns:1fr 1fr; gap:4px; position:fixed; inset:auto 0 calc(56px + env(safe-area-inset-bottom)); z-index:10; padding:8px; background:var(--surface); border-top:1px solid var(--line); }
+  .moremenu a { display:flex; gap:8px; align-items:center; min-height:44px; padding:8px; color:var(--text); }
+}

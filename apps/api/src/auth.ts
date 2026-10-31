@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { DB, Db } from './db';
 import * as s from './schema';
 
-export interface Principal { id: string; tenantId: string; email: string; name: string; roles: string[]; permissions: string[] }
+export interface Principal { id: string; tenantId: string; customerId: string | null; organizationId: string | null; email: string; name: string; roles: string[]; permissions: string[] }
 
 /** Identity operations, kept behind an interface so tests need no live Supabase project. */
 export interface IdentityProvider {
@@ -56,7 +56,7 @@ async function principalFor(db: Db, user: typeof s.users.$inferSelect): Promise<
     .leftJoin(s.rolePermissions, eq(s.rolePermissions.roleId, s.roles.id))
     .where(eq(s.userRoles.userId, user.id));
   return {
-    id: user.id, tenantId: user.tenantId, email: user.email, name: user.name,
+    id: user.id, tenantId: user.tenantId, customerId: user.customerId, organizationId: user.organizationId, email: user.email, name: user.name,
     roles: [...new Set(rows.map((r) => r.role))],
     permissions: [...new Set(rows.flatMap((r) => (r.permission ? [r.permission] : [])))],
   };
@@ -81,7 +81,7 @@ export class AuthGuard implements CanActivate {
   }
 }
 
-const userDto = z.object({ email: z.string().email().toLowerCase(), name: z.string().trim().min(1).max(200), password: z.string().min(10).max(200), roleCodes: z.array(z.string()).min(1) });
+const userDto = z.object({ email: z.string().email().toLowerCase(), name: z.string().trim().min(1).max(200), password: z.string().min(10).max(200), roleCodes: z.array(z.string()).min(1), customerId: z.string().uuid().nullish(), organizationId: z.string().uuid().nullish() });
 function parse<T>(schema: z.ZodType<T, z.ZodTypeDef, unknown>, body: unknown): T {
   const r = schema.safeParse(body);
   if (!r.success) throw new BadRequestException({ code: 'VALIDATION', issues: r.error.issues });
@@ -119,10 +119,16 @@ export class UsersController {
     if (roles.length !== new Set(dto.roleCodes).size) throw new BadRequestException({ code: 'UNKNOWN_ROLE' });
     // Without this, a user administrator could mint an account stronger than their own.
     if (roles.some((r) => r.code === 'super_admin') && !req.user.roles.includes('super_admin')) throw new ForbiddenException({ code: 'FORBIDDEN' });
+    // Portal accounts must be tied to exactly the record they may see.
+    const portalCustomer = dto.roleCodes.includes('customer_portal');
+    const portalSupplier = dto.roleCodes.includes('supplier_portal');
+    if (portalCustomer !== !!dto.customerId || portalSupplier !== !!dto.organizationId) throw new BadRequestException({ code: 'PORTAL_LINK_REQUIRED' });
+    if (dto.customerId && !(await this.db.select().from(s.customers).where(and(eq(s.customers.id, dto.customerId), eq(s.customers.tenantId, tenantId)))).length) throw new BadRequestException({ code: 'UNKNOWN_CUSTOMER' });
+    if (dto.organizationId && !(await this.db.select().from(s.mediaOrganizations).where(and(eq(s.mediaOrganizations.id, dto.organizationId), eq(s.mediaOrganizations.tenantId, tenantId)))).length) throw new BadRequestException({ code: 'UNKNOWN_ORGANIZATION' });
     if ((await this.db.select().from(s.users).where(eq(s.users.email, dto.email))).length) throw new HttpException({ code: 'DUPLICATE_EMAIL' }, 409);
     const authId = await this.identity.create(dto.email, dto.password);
     return this.db.transaction(async (tx) => {
-      const [u] = await tx.insert(s.users).values({ tenantId, authId, email: dto.email, name: dto.name }).returning();
+      const [u] = await tx.insert(s.users).values({ tenantId, authId, email: dto.email, name: dto.name, customerId: dto.customerId, organizationId: dto.organizationId }).returning();
       await tx.insert(s.userRoles).values(roles.map((r) => ({ userId: u.id, roleId: r.id })));
       await tx.insert(s.auditLogs).values({ tenantId, entity: 'user', recordId: u.id, action: 'create', changedBy: req.user.id, newValue: { email: u.email, roles: dto.roleCodes } });
       return { id: u.id, email: u.email, name: u.name, active: u.active, roles: dto.roleCodes };

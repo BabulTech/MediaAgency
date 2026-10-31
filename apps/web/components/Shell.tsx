@@ -1,9 +1,9 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Bell, BarChart3, CalendarDays, LayoutDashboard, Building2, Landmark, CalendarCheck, Calculator, Contact, FileText, ShoppingCart, LogOut, Moon, Sun, Tags, Users } from 'lucide-react';
+import { Bell, BarChart3, Menu, CalendarDays, LayoutDashboard, Building2, Landmark, CalendarCheck, Calculator, Contact, FileText, ShoppingCart, LogOut, Moon, Sun, Tags, Users } from 'lucide-react';
 import { ReactNode, useEffect, useState } from 'react';
-import { api, Me } from '@/lib/api';
+import { api, isPortalOnly, Me } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
 import { useI18n } from '@/lib/i18n';
 
@@ -26,10 +26,14 @@ export function Shell({ children }: { children: ReactNode }) {
   const isLogin = path === '/login' || path === '/reset-password';
   const [me, setMe] = useState<Me | null>(null);
   const [alerts, setAlerts] = useState(0);
+  const [more, setMore] = useState(false);
+  const portal = isPortalOnly(me);
   useEffect(() => { if (!isLogin) api<Me>('/auth/me').then(setMe).catch(() => setMe(null)); }, [isLogin]);
-  useEffect(() => { if (!isLogin) api<unknown[]>('/alerts').then((a) => setAlerts(a.length)).catch(() => setAlerts(0)); }, [isLogin, path]);
+  useEffect(() => { setMore(false); }, [path]);
+  useEffect(() => { if (portal && path !== '/portal') window.location.href = '/portal'; }, [portal, path]);
+  useEffect(() => { if (!isLogin && me && !portal) api<unknown[]>('/alerts').then((a) => setAlerts(a.length)).catch(() => setAlerts(0)); }, [isLogin, path, me, portal]);
   const logout = async () => { await supabase.auth.signOut(); window.location.href = '/login'; };
-  const items = [...NAV,
+  const items = portal ? [{ href: '/portal', key: 'portal', icon: Users } as const] : [...NAV,
     ...(me?.permissions.includes('finance.read') ? [{ href: '/finance', key: 'finance', icon: Landmark } as const] : []),
     ...(me?.permissions.includes('users.read') ? [{ href: '/users', key: 'users', icon: Users } as const] : [])];
   const links = items.map(({ href, key, icon: Icon }) => (
@@ -51,7 +55,8 @@ export function Shell({ children }: { children: ReactNode }) {
         </header>
         <main className="content">{children}</main>
       </div>
-      <nav className="bottomnav">{links.slice(0, 4)}</nav>
+      {more && <nav className="moremenu">{links.slice(3)}</nav>}
+      <nav className="bottomnav">{links.slice(0, 3)}{links.length > 3 && <button type="button" aria-expanded={more} aria-label={t('more')} onClick={() => setMore(!more)}><Menu size={18} />{t('more')}</button>}</nav>
     </div>
   );
 }
