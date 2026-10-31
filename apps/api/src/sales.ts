@@ -6,7 +6,7 @@ import { Perm } from './auth';
 import { nextNumber } from './crm';
 import { DB, Db } from './db';
 import { MAILER, Mailer } from './mail';
-import { priceRequest } from './pricing';
+import { priceRequest, redactCost } from './pricing';
 import * as s from './schema';
 
 /** Default from docs/plan.md: discounts above this need sales.approve. */
@@ -38,6 +38,13 @@ export class SalesController {
     if (!q) throw new NotFoundException({ code: 'NOT_FOUND' });
     return q;
   }
+  private scoped(req: any) {
+    return and(eq(s.customers.tenantId, req.user.tenantId), req.user.permissions.includes('sales.all') ? undefined : eq(s.customers.salesOwnerId, req.user.id));
+  }
+  private async assertOwn(req: any, customerId: string) {
+    const [c] = await this.db.select().from(s.customers).where(and(eq(s.customers.id, customerId), this.scoped(req)));
+    if (!c) throw new NotFoundException({ code: 'NOT_FOUND' });
+  }
   private lines(quotationId: string) {
     return this.db.select().from(s.quotationLines).where(eq(s.quotationLines.quotationId, quotationId));
   }
@@ -56,19 +63,21 @@ export class SalesController {
   quotations(@Req() req: any) {
     return this.db.select({ quotation: s.quotations, customerName: s.customers.name }).from(s.quotations)
       .innerJoin(s.customers, eq(s.quotations.customerId, s.customers.id))
-      .where(eq(s.quotations.tenantId, req.user.tenantId)).orderBy(desc(s.quotations.createdAt)).limit(200);
+      .where(this.scoped(req)).orderBy(desc(s.quotations.createdAt)).limit(200);
   }
 
   @Perm('sales.read') @Get('quotations/:id')
   async getQuotation(@Req() req: any, @Param('id') id: string) {
     const quotation = await this.quotation(req.user.tenantId, id);
-    return { quotation, lines: await this.lines(quotation.id) };
+    await this.assertOwn(req, quotation.customerId);
+    return { quotation, lines: (await this.lines(quotation.id)).map((l) => redactCost(req.user, l)) };
   }
 
   /** Customer-facing: never includes supplier cost. */
   @Perm('sales.read') @Get('quotations/:id/document')
   async quotationDocument(@Req() req: any, @Param('id') id: string) {
     const q = await this.quotation(req.user.tenantId, id);
+    await this.assertOwn(req, q.customerId);
     const [[tenant], [customer], rows] = await Promise.all([
       this.db.select().from(s.tenants).where(eq(s.tenants.id, q.tenantId)),
       this.db.select().from(s.customers).where(eq(s.customers.id, q.customerId)),
@@ -82,7 +91,7 @@ export class SalesController {
   async create(@Req() req: any, @Body() body: unknown) {
     const dto = parse(quotationDto, body);
     const tenantId: string = req.user.tenantId;
-    const [customer] = await this.db.select().from(s.customers).where(and(eq(s.customers.id, dto.customerId), eq(s.customers.tenantId, tenantId)));
+    const [customer] = await this.db.select().from(s.customers).where(and(eq(s.customers.id, dto.customerId), this.scoped(req)));
     if (!customer) throw new NotFoundException({ code: 'NOT_FOUND' });
     if (dto.campaignId) {
       const [c] = await this.db.select().from(s.campaigns).where(and(eq(s.campaigns.id, dto.campaignId), eq(s.campaigns.customerId, customer.id)));
@@ -99,6 +108,7 @@ export class SalesController {
   @Perm('sales.write') @Post('quotations/:id/lines')
   async addLine(@Req() req: any, @Param('id') id: string, @Body() body: unknown) {
     const q = await this.quotation(req.user.tenantId, id);
+    await this.assertOwn(req, q.customerId);
     if (q.status !== 'draft') throw new ConflictException({ code: 'NOT_DRAFT' });
     const dto = parse(lineDto, body);
     const snapshot = await priceRequest(this.db, q.tenantId, { ...dto, customerId: q.customerId });
@@ -109,7 +119,7 @@ export class SalesController {
       }).returning();
       await this.syncTotal(tx, q.id);
       await this.audit(tx, req, 'quotation', q.id, 'add_line', { lineId: l.id });
-      return l;
+      return redactCost(req.user, l);
     });
   }
 
@@ -208,16 +218,17 @@ export class SalesController {
   orders(@Req() req: any) {
     return this.db.select({ order: s.orders, customerName: s.customers.name }).from(s.orders)
       .innerJoin(s.customers, eq(s.orders.customerId, s.customers.id))
-      .where(eq(s.orders.tenantId, req.user.tenantId)).orderBy(desc(s.orders.createdAt)).limit(200);
+      .where(this.scoped(req)).orderBy(desc(s.orders.createdAt)).limit(200);
   }
 
   @Perm('sales.read') @Get('orders/:id')
   async getOrder(@Req() req: any, @Param('id') id: string) {
     const [order] = await this.db.select().from(s.orders).where(and(eq(s.orders.id, uuid(id)), eq(s.orders.tenantId, req.user.tenantId)));
     if (!order) throw new NotFoundException({ code: 'NOT_FOUND' });
+    await this.assertOwn(req, order.customerId);
     const rows = await this.db.select({ placement: s.placements, outletName: s.mediaOutlets.name }).from(s.placements)
       .innerJoin(s.mediaOutlets, eq(s.placements.outletId, s.mediaOutlets.id)).where(eq(s.placements.orderId, order.id));
-    return { order, placements: rows };
+    return { order, placements: rows.map((r) => ({ ...r, placement: redactCost(req.user, r.placement) })) };
   }
 
   @Perm('sales.approve') @Post('orders/:id/cancel')

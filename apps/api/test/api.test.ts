@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppModule } from '../src/app.module';
 import { IdentityProvider } from '../src/auth';
 import { Db, openDb } from '../src/db';
+import { rateLimiter } from '../src/http-security';
 import { auditLogs, mediaOrganizations, mediaOutlets, pricingSnapshots, tenants, users } from '../src/schema';
 
 let app: INestApplication; let url: string; let db: Db;
@@ -539,5 +540,32 @@ describe('email', () => {
     const r = await draft();
     expect((await post(`/v1/quotations/${r.id}/submit`, {})).status).toBe(201);
     failMail = false;
+  });
+});
+
+describe('security', () => {
+  it('rate limits per key and resets after the window', () => {
+    let now = 0;
+    const allow = rateLimiter(2, 1000, () => now);
+    expect([allow('a'), allow('a'), allow('a'), allow('b')]).toEqual([true, true, false, true]);
+    now = 1000;
+    expect(allow('a')).toBe(true);
+  });
+  it('limits sales executives to their customers and hides supplier cost', async () => {
+    await post('/v1/users', { email: 'se1@example.com', name: 'S', password: 'long-password-1', roleCodes: ['sales_executive'] });
+    await post('/v1/users', { email: 'se2@example.com', name: 'S', password: 'long-password-1', roleCodes: ['sales_executive'] });
+    const c = await (await post('/v1/customers', { name: 'Owned' }, 'se1@example.com')).json();
+    const list = (t: string) => fetch(`${url}/v1/customers`, { headers: headers(t) }).then((r) => r.json());
+    expect((await list('se1@example.com')).map((r: any) => r.id)).toEqual([c.id]);
+    expect(await list('se2@example.com')).toEqual([]);
+    expect((await fetch(`${url}/v1/customers/${c.id}`, { headers: headers('se2@example.com') })).status).toBe(404);
+    const q = await (await post('/v1/quotations', { customerId: c.id, validUntil: '2026-12-31' }, 'se1@example.com')).json();
+    expect((await post('/v1/quotations', { customerId: c.id, validUntil: '2026-12-31' }, 'se2@example.com')).status).toBe(404);
+    const o = await outlet('SAMPLE-TV');
+    const line = await post(`/v1/quotations/${q.id}/lines`, { outletId: o.id, formatCode: 'tvc', date: '2026-11-02', quantity: { durationSeconds: 10, spots: 1 } }, 'se1@example.com');
+    expect(await line.text()).not.toMatch(/supplierCost|12000/);
+    const view = await (await fetch(`${url}/v1/quotations/${q.id}`, { headers: headers('se1@example.com') })).text();
+    expect(view).not.toMatch(/supplierCost|12000/);
+    expect((await fetch(`${url}/v1/quotations/${q.id}`, { headers: headers('se2@example.com') })).status).toBe(404);
   });
 });

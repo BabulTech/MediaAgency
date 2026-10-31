@@ -39,9 +39,9 @@ export async function nextNumber(tx: Pick<Db, 'execute'>, tenantId: string, key:
 export class CrmController {
   constructor(@Inject(DB) private db: Db) {}
 
-  private async customer(tenantId: string, id: string) {
+  private async customer(tenantId: string, id: string, user?: { id: string; permissions: string[] }) {
     const [c] = await this.db.select().from(s.customers).where(and(eq(s.customers.id, uuid(id)), eq(s.customers.tenantId, tenantId)));
-    if (!c) throw new NotFoundException({ code: 'NOT_FOUND' });
+    if (!c || (user && !user.permissions.includes('sales.all') && c.salesOwnerId !== user.id)) throw new NotFoundException({ code: 'NOT_FOUND' });
     return c;
   }
   private audit(tx: Pick<Db, 'insert'>, req: any, entity: string, recordId: string, action: string, newValue?: unknown) {
@@ -52,13 +52,13 @@ export class CrmController {
   customers(@Req() req: any, @Query('q') q?: string) {
     const like = `%${(q ?? '').replace(/[%_\\]/g, '\\$&')}%`;
     return this.db.select().from(s.customers)
-      .where(and(eq(s.customers.tenantId, req.user.tenantId), q ? or(ilike(s.customers.name, like), ilike(s.customers.number, like)) : undefined))
+      .where(and(eq(s.customers.tenantId, req.user.tenantId), req.user.permissions.includes('sales.all') ? undefined : eq(s.customers.salesOwnerId, req.user.id), q ? or(ilike(s.customers.name, like), ilike(s.customers.number, like)) : undefined))
       .orderBy(desc(s.customers.createdAt)).limit(200);
   }
 
   @Perm('sales.read') @Get('customers/:id')
   async getCustomer(@Req() req: any, @Param('id') id: string) {
-    const customer = await this.customer(req.user.tenantId, id);
+    const customer = await this.customer(req.user.tenantId, id, req.user);
     const [contacts, campaigns] = await Promise.all([
       this.db.select().from(s.customerContacts).where(eq(s.customerContacts.customerId, customer.id)),
       this.db.select().from(s.campaigns).where(eq(s.campaigns.customerId, customer.id)),
@@ -80,7 +80,7 @@ export class CrmController {
 
   @Perm('sales.write') @Patch('customers/:id')
   async updateCustomer(@Req() req: any, @Param('id') id: string, @Body() body: unknown) {
-    const before = await this.customer(req.user.tenantId, id);
+    const before = await this.customer(req.user.tenantId, id, req.user);
     const dto = parse(customerDto, body);
     return this.db.transaction(async (tx) => {
       const [c] = await tx.update(s.customers).set(dto).where(eq(s.customers.id, before.id)).returning();
@@ -91,7 +91,7 @@ export class CrmController {
 
   @Perm('sales.write') @Post('customers/:id/contacts')
   async addContact(@Req() req: any, @Param('id') id: string, @Body() body: unknown) {
-    const c = await this.customer(req.user.tenantId, id);
+    const c = await this.customer(req.user.tenantId, id, req.user);
     const [row] = await this.db.insert(s.customerContacts).values({ ...parse(contactDto, body), tenantId: c.tenantId, customerId: c.id }).returning();
     return row;
   }
@@ -106,7 +106,7 @@ export class CrmController {
   @Perm('sales.write') @Post('campaigns')
   async createCampaign(@Req() req: any, @Body() body: unknown) {
     const dto = parse(campaignDto, body);
-    await this.customer(req.user.tenantId, dto.customerId);
+    await this.customer(req.user.tenantId, dto.customerId, req.user);
     return this.db.transaction(async (tx) => {
       const [c] = await tx.insert(s.campaigns).values({ ...dto, tenantId: req.user.tenantId, ownerId: req.user.id }).returning();
       await this.audit(tx, req, 'campaign', c.id, 'create', dto);

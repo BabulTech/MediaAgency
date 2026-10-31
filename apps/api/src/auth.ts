@@ -30,7 +30,11 @@ export function supabaseIdentity(): IdentityProvider {
       if (hit && hit.until > Date.now()) return hit.id;
       const res = await fetch(`${url}/auth/v1/user`, { headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, Authorization: `Bearer ${token}` } });
       if (!res.ok) { verified.delete(token); return null; }
-      const { id } = (await res.json()) as { id: string };
+      const user = (await res.json()) as { id: string; factors?: { status: string }[] };
+      // A password-only session must not skip a second factor the user has turned on.
+      const aal = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString()).aal;
+      if (user.factors?.some((f) => f.status === 'verified') && aal !== 'aal2') return null;
+      const { id } = user;
       if (verified.size > 5000) verified.clear();
       verified.set(token, { id, until: Date.now() + VERIFY_CACHE_MS });
       return id;

@@ -43,7 +43,7 @@ Supabase: database, Auth login and password recovery are live. Storage arrives w
 
 ## Deferred to the end, by owner decision
 
-MFA, per-tenant RLS policies, rate limiting, API certificate verification, and field and ownership permissions. All must be done before production.
+Remaining: certificate verification on the database connection, per-tenant RLS policies (public access is denied on every table; the API is the only path), cost hiding on rate cards and placement pages. MFA, rate limiting, ownership and cost hiding on sales records are done.
 
 ## Next step
 

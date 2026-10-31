@@ -100,6 +100,10 @@ export class PricingController {
     const tenantId: string = req.user.tenantId;
     const result = await priceRequest(this.db, tenantId, dto);
     const [snap] = await this.db.insert(s.pricingSnapshots).values({ tenantId, request: dto, result }).returning();
+    if (!req.user.permissions.includes('cost.read')) {
+      const { supplierCost: _c, margin: _m, marginPercent: _p, ...breakdown } = result.breakdown;
+      return { snapshotId: snap.id, ...result, supplierRuleId: null, breakdown };
+    }
     return { snapshotId: snap.id, ...result };
   }
 }

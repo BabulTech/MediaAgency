@@ -9,6 +9,13 @@ export const toRule = ({ rule, card }: Awaited<ReturnType<typeof rulesForOutlet>
   rate: rule.rate, multiplier: rule.multiplier, minimumCharge: rule.minimumCharge,
 });
 
+/** Removes purchase costs and margin for anyone without cost.read. */
+export function redactCost<T extends { supplierCost?: unknown; snapshot?: any }>(user: { permissions: string[] }, row: T): T {
+  if (user.permissions.includes('cost.read')) return row;
+  const { supplierCost: _c, snapshot: _s, ...rest } = row;
+  return rest as T;
+}
+
 export interface PriceRequest {
   outletId: string; formatCode: string; date: string; editionCode?: string; timeBandCode?: string; customerId?: string;
   quantity: Quantity; premiumFixed?: number; surchargePercent?: number; discountPercent?: number; taxPercent?: number;
