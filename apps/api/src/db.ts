@@ -60,18 +60,18 @@ async function seed(db: Db) {
   await seedAccess(db);
 }
 
-const READ = ['media.read', 'ratecards.read', 'sales.read'];
+const READ = ['media.read', 'ratecards.read', 'sales.read', 'ops.read'];
 const PRICE = [...READ, 'pricing.calculate'];
-const MANAGE = [...PRICE, 'media.write', 'ratecards.write'];
+const MANAGE = [...PRICE, 'media.write', 'ratecards.write', 'ops.write', 'ops.verify'];
 const ADMIN = [...MANAGE, 'sales.write', 'sales.approve', 'ratecards.approve', 'users.read', 'users.write', 'audit.read'];
 export const DEFAULT_ROLES: [string, string, string[]][] = [
   ['super_admin', 'Super Administrator', ADMIN], ['agency_admin', 'Agency Administrator', ADMIN],
   ['director', 'Chief Executive / Director', [...PRICE, 'users.read', 'audit.read']],
   ['sales_manager', 'Sales Manager', [...PRICE, 'sales.write', 'sales.approve']], ['sales_executive', 'Sales Executive', [...PRICE, 'sales.write']],
-  ['booking_manager', 'Booking Manager', MANAGE], ['newspaper_booking', 'Newspaper Booking Officer', PRICE],
-  ['broadcast_booking', 'TV/Radio Booking Officer', PRICE], ['creative_manager', 'Creative/Artwork Manager', READ],
+  ['booking_manager', 'Booking Manager', MANAGE], ['newspaper_booking', 'Newspaper Booking Officer', [...PRICE, 'ops.write']],
+  ['broadcast_booking', 'TV/Radio Booking Officer', [...PRICE, 'ops.write']], ['creative_manager', 'Creative/Artwork Manager', [...READ, 'ops.write', 'ops.verify']],
   ['finance_manager', 'Finance Manager', PRICE], ['accountant', 'Accountant', PRICE],
-  ['operations', 'Operations Executive', READ], ['read_only', 'Reporting/Read-Only User', READ],
+  ['operations', 'Operations Executive', [...READ, 'ops.write', 'ops.verify']], ['read_only', 'Reporting/Read-Only User', READ],
   ['customer_portal', 'Customer Portal User', []], ['supplier_portal', 'Media Supplier Portal User', []],
 ];
 

@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Building2, Calculator, Contact, FileText, ShoppingCart, LogOut, Moon, Sun, Tags, Users } from 'lucide-react';
+import { Building2, CalendarCheck, Calculator, Contact, FileText, ShoppingCart, LogOut, Moon, Sun, Tags, Users } from 'lucide-react';
 import { ReactNode, useEffect, useState } from 'react';
 import { api, Me } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
@@ -12,6 +12,7 @@ const NAV = [
   { href: '/customers', key: 'customers', icon: Contact },
   { href: '/quotations', key: 'quotations', icon: FileText },
   { href: '/orders', key: 'orders', icon: ShoppingCart },
+  { href: '/bookings', key: 'bookings', icon: CalendarCheck },
   { href: '/media', key: 'media', icon: Building2 },
   { href: '/rate-cards', key: 'rateCards', icon: Tags },
 ] as const;

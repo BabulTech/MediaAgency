@@ -28,7 +28,8 @@
 | 1 Foundation | Mostly done: login, hashed passwords, revocable sessions, lockout, 15 roles, server-side permissions, tenant filtering, user admin, audit. **Missing: MFA, role editor, field and ownership permissions, database RLS, rate limiting, audit viewer** |
 | 2 Media and rate cards | Partial: outlets list/create, rate card create, rules, publish, expire, versions, history, CSV import and export, engine, calculators, previews. Single-step approval only; no Excel format |
 | 3 CRM and sales | Mostly done: customers, contacts, campaigns, quotations, orders, placements with frozen prices, discount approval above 10%. No PDFs, quotation revisions, order amendments or general approval engine |
-| 4 to 7 | Not started: bookings, creative, proofs, finance, dashboards, reports, portals |
+| 4 Booking and operations | Mostly done: supplier bookings, artwork versions, proofs, private file storage. No booking PDFs, TV calendar, schedule discrepancy flags or spec validation |
+| 5 to 7 | Not started: finance, dashboards, reports, portals |
 
 Rule 9.3 note: rule stacking, rule-level premiums and tax rules are not in the engine yet. Radio, digital and outdoor calculators are also outstanding.
 

@@ -126,3 +126,24 @@ export const placements = pgTable('placements', {
   request: jsonb('request').notNull(), snapshot: jsonb('snapshot').notNull(), net: money('net').notNull(), supplierCost: money('supplier_cost'),
   status: text('status').notNull().default('pending'),
 });
+
+export const supplierBookings = pgTable('supplier_bookings', {
+  id: id(), tenantId: tenantId(), number: text('number').notNull(), placementId: uuid('placement_id').notNull().references(() => placements.id),
+  orderId: uuid('order_id').notNull().references(() => orders.id), outletId: uuid('outlet_id').notNull().references(() => mediaOutlets.id),
+  status: text('status').notNull().default('submitted'), requestedDate: date('requested_date').notNull(), purchasePrice: money('purchase_price'), supplierReference: text('supplier_reference'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [unique().on(t.tenantId, t.number)]);
+
+export const creativeAssets = pgTable('creative_assets', {
+  id: id(), tenantId: tenantId(), placementId: uuid('placement_id').notNull().references(() => placements.id),
+  version: integer('version').notNull(), fileName: text('file_name').notNull(), storagePath: text('storage_path').notNull(),
+  status: text('status').notNull().default('pending'), comment: text('comment'), uploadedBy: uuid('uploaded_by').references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [unique().on(t.placementId, t.version)]);
+
+export const executionProofs = pgTable('execution_proofs', {
+  id: id(), tenantId: tenantId(), placementId: uuid('placement_id').notNull().references(() => placements.id),
+  kind: text('kind').notNull(), fileName: text('file_name').notNull(), storagePath: text('storage_path').notNull(), actualDate: date('actual_date').notNull(), actualPage: text('actual_page'),
+  status: text('status').notNull().default('uploaded'), comment: text('comment'), uploadedBy: uuid('uploaded_by').references(() => users.id), verifiedBy: uuid('verified_by').references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});

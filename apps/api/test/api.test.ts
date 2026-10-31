@@ -23,7 +23,7 @@ const identity: IdentityProvider = {
 
 beforeAll(async () => {
   db = await openDb({ memory: true });
-  app = await NestFactory.create(AppModule.forDb(db, identity), { logger: false });
+  app = await NestFactory.create(AppModule.forDb(db, identity, { uploadUrl: async (p) => `https://files.test/${p}`, downloadUrl: async (p) => `https://files.test/${p}` }), { logger: false });
   await app.listen(0, '127.0.0.1');
   url = (await app.getUrl()).replace('[::1]', 'localhost');
   const adminId = await identity.create('admin@example.com', '');
@@ -217,5 +217,68 @@ describe('quotations and orders', () => {
     expect((await post(`/v1/quotations/${q.id}/lines`, { outletId: o.id, formatCode: 'tvc', date: '2026-11-02', quantity: {} })).status).toBe(409);
     const fresh = await (await post('/v1/quotations', { customerId: q.customerId, validUntil: '2026-12-31' })).json();
     expect((await post(`/v1/quotations/${fresh.id}/lines`, { outletId: o.id, formatCode: 'ticker', date: '2026-11-02', quantity: {} })).status).toBe(422);
+  });
+});
+
+describe('operations', () => {
+  const placement = async () => {
+    const cust = await (await post('/v1/customers', { name: 'Ops' })).json();
+    const q = await (await post('/v1/quotations', { customerId: cust.id, validUntil: '2026-12-31' })).json();
+    const o = await outlet('SAMPLE-TV');
+    await post(`/v1/quotations/${q.id}/lines`, { outletId: o.id, formatCode: 'tvc', date: '2026-11-02', quantity: { durationSeconds: 30, spots: 1 } });
+    for (const step of ['submit', 'send']) await post(`/v1/quotations/${q.id}/${step}`, {});
+    const order = await (await post(`/v1/quotations/${q.id}/accept`, {})).json();
+    const d = await (await fetch(`${url}/v1/orders/${order.id}`, { headers: headers(token) })).json();
+    return { id: d.placements[0].placement.id as string, orderId: order.id as string };
+  };
+  const detail = async (id: string) => (await fetch(`${url}/v1/placements/${id}`, { headers: headers(token) })).json();
+  const status = (id: string, s: string) => post(`/v1/bookings/${id}/status`, { status: s });
+  const proof = async (id: string) => {
+    const { path } = await (await post(`/v1/placements/${id}/upload-url`, { fileName: 'proof.jpg' })).json();
+    return (await post(`/v1/placements/${id}/proofs`, { path, fileName: 'proof.jpg', kind: 'publication', actualDate: '2026-11-02' })).json();
+  };
+
+  it('allows one live booking but a retry after rejection', async () => {
+    const { id } = await placement();
+    const b = await (await post(`/v1/placements/${id}/bookings`, {})).json();
+    expect(b.status).toBe('submitted');
+    expect(b.purchasePrice).toBe('36000.0000');
+    expect((await post(`/v1/placements/${id}/bookings`, {})).status).toBe(409);
+    await status(b.id, 'rejected');
+    expect((await post(`/v1/placements/${id}/bookings`, {})).status).toBe(201);
+  });
+  it('refuses illegal booking moves', async () => {
+    const { id } = await placement();
+    const b = await (await post(`/v1/placements/${id}/bookings`, {})).json();
+    expect((await status(b.id, 'executed')).status).toBe(409);
+    expect((await status(b.id, 'nonsense')).status).toBe(400);
+  });
+  it('verifies only through reviewed proof after execution', async () => {
+    const { id } = await placement();
+    const b = await (await post(`/v1/placements/${id}/bookings`, {})).json();
+    await status(b.id, 'confirmed');
+    expect((await detail(id)).placement.status).toBe('booked');
+    const early = await proof(id);
+    expect((await post(`/v1/proofs/${early.id}/review`, { approved: true })).status).toBe(409);
+    await status(b.id, 'executed');
+    expect((await post(`/v1/proofs/${early.id}/review`, { approved: true })).status).toBe(201);
+    expect((await detail(id)).placement.status).toBe('verified');
+  });
+  it('versions artwork and rejects foreign file paths', async () => {
+    const { id } = await placement();
+    const up = async () => {
+      const { path } = await (await post(`/v1/placements/${id}/upload-url`, { fileName: 'a b.png' })).json();
+      return (await post(`/v1/placements/${id}/creatives`, { path, fileName: 'a b.png' })).json();
+    };
+    await up();
+    expect((await up()).version).toBe(2);
+    expect((await post(`/v1/placements/${id}/creatives`, { path: 'other/x/y.png', fileName: 'y' })).status).toBe(400);
+    const dl = await fetch(`${url}/v1/files/download?path=other/x/y.png`, { headers: headers(token) });
+    expect(dl.status).toBe(404);
+  });
+  it('refuses booking a cancelled order', async () => {
+    const { id, orderId } = await placement();
+    await post(`/v1/orders/${orderId}/cancel`, {});
+    expect((await post(`/v1/placements/${id}/bookings`, {})).status).toBe(409);
   });
 });

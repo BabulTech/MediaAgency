@@ -78,6 +78,20 @@
       "when": 1793457061611,
       "tag": "0010_sales_access",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793457371621,
+      "tag": "0011_certain_mad_thinker",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793457380616,
+      "tag": "0012_ops_access",
+      "breakpoints": true
     }
   ]
 }

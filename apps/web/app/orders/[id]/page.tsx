@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { Card, Result, useLoad } from '@/components/ui';
 import { api } from '@/lib/api';
@@ -32,9 +33,9 @@ export default function OrderPage() {
       {message && <p className="error">{message}</p>}
       <Card title={t('placements')}>
         {data.placements.map(({ placement: p, outletName }) => (
-          <div className="row" key={p.id}>
+          <Link className="row" key={p.id} href={`/placements/${p.id}`}>
             <span><b>{outletName}</b><br /><small className="muted">{p.formatCode} · {p.date} · {p.status}</small></span><b>{pkr(p.net)}</b>
-          </div>
+          </Link>
         ))}
         <Result label={t('paperResult')} value={pkr(data.order.total)} />
       </Card>
