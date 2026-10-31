@@ -2,8 +2,9 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { Card, Result, useLoad } from '@/components/ui';
+import { Card, Result, Status, useLoad } from '@/components/ui';
 import { api } from '@/lib/api';
+import { DictKey } from '@/lib/dict';
 import { useI18n } from '@/lib/i18n';
 
 type Detail = {
@@ -29,12 +30,12 @@ export default function OrderPage() {
   return (
     <div className="stack">
       <h1>{data.order.number}</h1>
-      <p className="muted">{data.order.status}</p>
+      <Status value={data.order.status} />
       {message && <p className="error">{message}</p>}
       <Card title={t('placements')}>
         {data.placements.map(({ placement: p, outletName }) => (
           <Link className="row" key={p.id} href={`/placements/${p.id}`}>
-            <span><b>{outletName}</b><br /><small className="muted">{p.formatCode} · {p.date} · {p.status}</small></span><b>{pkr(p.net)}</b>
+            <span><b>{outletName}</b><br /><small className="muted">{t(p.formatCode as DictKey) ?? p.formatCode} · {p.date}</small></span><span className="row-end"><Status value={p.status} /><b>{pkr(p.net)}</b></span>
           </Link>
         ))}
         <Result label={t('paperResult')} value={pkr(data.order.total)} />

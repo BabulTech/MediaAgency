@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { FormEvent, useState } from 'react';
-import { Card, Field, Select, useLoad } from '@/components/ui';
+import { Card, Field, Select, Status, useLoad } from '@/components/ui';
 import { api, Customer } from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
 
@@ -36,7 +36,7 @@ export default function CustomersPage() {
         {data.map((c) => (
           <Link className="row" key={c.id} href={`/customers/${c.id}`}>
             <span><b>{c.name}</b><br /><small className="muted">{c.number} · {t(c.type as 'corporate')}{c.city ? ` · ${c.city}` : ''}</small></span>
-            <small className="muted">{t(c.status === 'active' ? 'active' : 'inactive')}</small>
+            <Status value={c.status} />
           </Link>
         ))}
       </Card>

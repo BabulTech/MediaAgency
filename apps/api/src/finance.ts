@@ -73,13 +73,13 @@ export class FinanceController {
   myDocument(@Req() req: any, @Param('id') id: string) { return this.invoiceDocument(req.user.tenantId, id, req.user.customerId); }
 
   private async invoiceDocument(tenantId: string, id: string, customerId?: string) {
-    const [r] = await this.db.select({ i: s.customerInvoices, party: s.customers.name, agency: s.tenants.name }).from(s.customerInvoices)
+    const [r] = await this.db.select({ i: s.customerInvoices, party: s.customers.name, tenant: s.tenants }).from(s.customerInvoices)
       .innerJoin(s.customers, eq(s.customerInvoices.customerId, s.customers.id)).innerJoin(s.tenants, eq(s.customerInvoices.tenantId, s.tenants.id))
       .where(and(eq(s.customerInvoices.id, uuid(id)), eq(s.customerInvoices.tenantId, tenantId), customerId ? eq(s.customerInvoices.customerId, customerId) : undefined));
     if (!r) throw new NotFoundException({ code: 'NOT_FOUND' });
     const lines = await this.db.select().from(s.customerInvoiceLines).where(eq(s.customerInvoiceLines.invoiceId, r.i.id));
     const balance = (await this.invoicesWithBalance(tenantId)).find((x) => x.invoice.id === r.i.id)!.balance;
-    return { agency: r.agency, number: r.i.number, date: r.i.invoiceDate, dueDate: r.i.dueDate, party: r.party, subtotal: r.i.subtotal, tax: r.i.tax, total: r.i.total,
+    return { agency: r.tenant.name, company: { address: r.tenant.address, phone: r.tenant.phone, email: r.tenant.email, ntn: r.tenant.ntn, bankDetails: r.tenant.bankDetails }, number: r.i.number, date: r.i.invoiceDate, dueDate: r.i.dueDate, party: r.party, subtotal: r.i.subtotal, tax: r.i.tax, total: r.i.total,
       paid: sumMoney([r.i.total, `-${balance}`]), balance, lines: lines.map((l) => ({ description: l.description, amount: l.amount })) };
   }
   @Perm('finance.read') @Get('finance/invoices/:id/document') document(@Req() req: any, @Param('id') id: string) { return this.invoiceDocument(req.user.tenantId, id); }

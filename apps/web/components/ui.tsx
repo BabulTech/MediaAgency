@@ -1,5 +1,6 @@
 'use client';
 import { ChangeEvent, ReactNode, useEffect, useState } from 'react';
+import { DictKey } from '@/lib/dict';
 import { useI18n } from '@/lib/i18n';
 
 export const Card = ({ title, children }: { title?: string; children: ReactNode }) => (
@@ -82,4 +83,16 @@ export function useLoad<T>(load: () => Promise<T>, fallback: T, deps: unknown[] 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
   return { data, error };
+}
+
+const TONES: Record<string, string> = {
+  approved: 'good', accepted: 'good', confirmed: 'good', verified: 'good', published: 'good', active: 'good', executed: 'good', booked: 'good',
+  rejected: 'bad', cancelled: 'bad', expired: 'bad', inactive: 'bad',
+  pending_approval: 'warn', pending: 'warn', submitted: 'warn', reschedule_requested: 'warn', uploaded: 'warn', sent: 'info', planned: 'info',
+};
+
+export function Status({ value }: { value: string }) {
+  const { t } = useI18n();
+  const label = t(`status_${value}` as DictKey) ?? value;
+  return <span className={`badge ${TONES[value] ?? ''}`}>{label}</span>;
 }

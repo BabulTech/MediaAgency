@@ -4,7 +4,9 @@ const id = () => uuid('id').primaryKey().defaultRandom();
 const tenantId = () => uuid('tenant_id').notNull().references(() => tenants.id);
 const money = (name: string) => numeric(name, { precision: 18, scale: 4 });
 
-export const tenants = pgTable('tenants', { id: id(), name: text('name').notNull() });
+export const tenants = pgTable('tenants', {
+  id: id(), name: text('name').notNull(), address: text('address'), phone: text('phone'), email: text('email'), ntn: text('ntn'), bankDetails: text('bank_details'),
+});
 
 export const mediaCategories = pgTable('media_categories', {
   id: id(), tenantId: tenantId(), code: text('code').notNull(), name: text('name').notNull(),

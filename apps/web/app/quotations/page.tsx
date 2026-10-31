@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, Field, Select, useLoad } from '@/components/ui';
+import { Card, Field, Select, Status, useLoad } from '@/components/ui';
 import { api, Customer } from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
 
@@ -37,7 +37,7 @@ export default function QuotationsPage() {
         {data.rows.length === 0 && <p className="muted">{t('noRecords')}</p>}
         {data.rows.map(({ quotation: q, customerName }) => (
           <Link className="row" key={q.id} href={`/quotations/${q.id}`}>
-            <span><b>{q.number}</b><br /><small className="muted">{customerName} · {q.status}</small></span><b>{pkr(q.total)}</b>
+            <span><b>{q.number}</b><br /><small className="muted">{customerName}</small></span><span className="row-end"><Status value={q.status} /><b>{pkr(q.total)}</b></span>
           </Link>
         ))}
       </Card>

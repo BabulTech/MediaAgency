@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { Card, useLoad } from '@/components/ui';
+import { Card, Status, useLoad } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
 
@@ -17,7 +17,7 @@ export default function OrdersPage() {
         {data.length === 0 && <p className="muted">{t('noRecords')}</p>}
         {data.map(({ order: o, customerName }) => (
           <Link className="row" key={o.id} href={`/orders/${o.id}`}>
-            <span><b>{o.number}</b><br /><small className="muted">{customerName} · {o.status}</small></span><b>{pkr(o.total)}</b>
+            <span><b>{o.number}</b><br /><small className="muted">{customerName}</small></span><span className="row-end"><Status value={o.status} /><b>{pkr(o.total)}</b></span>
           </Link>
         ))}
       </Card>

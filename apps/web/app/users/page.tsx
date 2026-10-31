@@ -34,7 +34,7 @@ export default function UsersPage() {
     } catch { setMessage(t('saveFailed')); }
   }
 
-  if (error) return <p className="error">{t('accessDenied')}</p>;
+  if (error) return <p className="error">{t('loadFailed')}</p>;
   return (
     <div className="stack">
       <h1>{t('users')}</h1>

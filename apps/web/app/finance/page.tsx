@@ -42,7 +42,7 @@ export default function FinancePage() {
     } catch { setMessage(t('saveFailed')); }
   };
 
-  if (error) return <p className="error">{t('accessDenied')}</p>;
+  if (error) return <p className="error">{t('loadFailed')}</p>;
   if (!data) return null;
   const { summary, invoices, bills, profit, billable } = data;
   const bookingId = bill.bookingId || billable[0]?.booking.id || '';

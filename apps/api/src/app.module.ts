@@ -65,6 +65,28 @@ export class MediaController {
   }
 }
 
+const settingsDto = z.object({ name: z.string().trim().min(1).max(200), address: z.string().max(500).nullish(), phone: z.string().max(60).nullish(), email: z.string().max(200).nullish(), ntn: z.string().max(40).nullish(), bankDetails: z.string().max(1000).nullish() });
+
+@Controller('v1/settings')
+export class SettingsController {
+  constructor(@Inject(DB) private db: Db) {}
+
+  @Get() async get(@Req() req: any) {
+    const [t] = await this.db.select().from(s.tenants).where(eq(s.tenants.id, req.user.tenantId));
+    return t;
+  }
+
+  @Perm('users.write') @Post()
+  async save(@Req() req: any, @Body() body: unknown) {
+    const dto = parse(settingsDto, body);
+    return this.db.transaction(async (tx) => {
+      const [t] = await tx.update(s.tenants).set(dto).where(eq(s.tenants.id, req.user.tenantId)).returning();
+      await tx.insert(s.auditLogs).values({ tenantId: t.id, entity: 'settings', recordId: t.id, action: 'update', changedBy: req.user.id, newValue: dto });
+      return t;
+    });
+  }
+}
+
 @Controller('v1/pricing')
 export class PricingController {
   constructor(@Inject(DB) private db: Db) {}
@@ -83,6 +105,6 @@ export class PricingController {
 @Module({})
 export class AppModule {
   static forDb(db: Db, identity: IdentityProvider = supabaseIdentity(), files: FileStore = supabaseFiles()): DynamicModule {
-    return { module: AppModule, controllers: [AuthController, UsersController, MediaController, RateCardsController, CrmController, SalesController, OperationsController, FinanceController, ReportsController, PricingController], providers: [{ provide: DB, useValue: db }, { provide: IDENTITY, useValue: identity }, { provide: FILES, useValue: files }, { provide: APP_GUARD, useValue: new AuthGuard(db, identity) }] };
+    return { module: AppModule, controllers: [SettingsController, AuthController, UsersController, MediaController, RateCardsController, CrmController, SalesController, OperationsController, FinanceController, ReportsController, PricingController], providers: [{ provide: DB, useValue: db }, { provide: IDENTITY, useValue: identity }, { provide: FILES, useValue: files }, { provide: APP_GUARD, useValue: new AuthGuard(db, identity) }] };
   }
 }

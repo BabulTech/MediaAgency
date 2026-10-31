@@ -1,7 +1,7 @@
 'use client';
 import { ChangeEvent, FormEvent, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Card, Field, NumberField, Row, Select, useLoad } from '@/components/ui';
+import { Card, Field, NumberField, Row, Select, Status, useLoad } from '@/components/ui';
 import { api, RateCard } from '@/lib/api';
 import { rulesToCsv, csvToRules, RuleRow } from '@/lib/csv';
 import { useI18n } from '@/lib/i18n';
@@ -55,7 +55,8 @@ export default function RateCardPage() {
   return (
     <div className="stack">
       <h1>{card.name}</h1>
-      <p className="muted">v{card.version} · {card.status} · {t(card.kind === 'selling' ? 'selling' : 'supplier')} · {t('effectiveFrom')} {card.effectiveFrom}</p>
+      <Status value={card.status} />
+      <p className="muted">v{card.version} · {t(card.kind === 'selling' ? 'selling' : 'supplier')} · {t('effectiveFrom')} {card.effectiveFrom}</p>
       {card.isSample && <small className="tag">{t('sampleRate')}</small>}
       {message && <p className="error">{message}</p>}
 

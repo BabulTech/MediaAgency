@@ -29,7 +29,7 @@ export default function ReportsPage() {
   return (
     <div className="stack">
       <h1>{t('reports')}</h1>
-      {error && <p className="error">{t('accessDenied')}</p>}
+      {error && <p className="error">{t('loadFailed')}</p>}
       <div className="grid2">
         <div className="span2"><Select label={t('reports')} value={name} onChange={setName} options={REPORTS.map((r) => ({ value: r, label: t(r as DictKey) }))} /></div>
         <Field label={t('startDate')}><input className="input" type="date" dir="ltr" value={from} onChange={(e) => setFrom(e.target.value)} /></Field>

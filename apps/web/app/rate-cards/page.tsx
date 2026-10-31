@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, Field, Select, useLoad } from '@/components/ui';
+import { Card, Field, Select, Status, useLoad } from '@/components/ui';
 import { api, Outlet, RateCard } from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
 
@@ -34,8 +34,8 @@ export default function RateCardsPage() {
         {data.cards.length === 0 && <p className="muted">{t('noRecords')}</p>}
         {data.cards.map((c) => (
           <Link className="row" key={c.id} href={`/rate-cards/${c.id}`}>
-            <span><b>{c.name}</b><br /><small className="muted">{t(c.kind === 'selling' ? 'selling' : 'supplier')} · {c.status} · {t('effectiveFrom')} {c.effectiveFrom}</small></span>
-            {c.isSample && <small className="tag">{t('sample')}</small>}
+            <span><b>{c.name}</b><br /><small className="muted">{t(c.kind === 'selling' ? 'selling' : 'supplier')} · {t('effectiveFrom')} {c.effectiveFrom}</small></span>
+            <span className="row-end">{c.isSample && <small className="tag">{t('sample')}</small>}<Status value={c.status} /></span>
           </Link>
         ))}
       </Card>

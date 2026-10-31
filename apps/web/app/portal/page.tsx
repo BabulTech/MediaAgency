@@ -1,7 +1,8 @@
 'use client';
 import { useState } from 'react';
-import { Card, Row, useLoad } from '@/components/ui';
+import { Card, Row, Status, useLoad } from '@/components/ui';
 import { api, Me } from '@/lib/api';
+import { DictKey } from '@/lib/dict';
 import { useI18n } from '@/lib/i18n';
 
 type CustomerView = {
@@ -27,7 +28,7 @@ export default function PortalPage() {
     try { await api(path, { method: 'POST', body: JSON.stringify(body) }); setVersion((v) => v + 1); }
     catch { setMessage(t('saveFailed')); }
   };
-  if (error) return <p className="error">{t('accessDenied')}</p>;
+  if (error) return <p className="error">{t('loadFailed')}</p>;
   if (!data) return null;
   const { customer, supplier } = data;
 
@@ -40,7 +41,7 @@ export default function PortalPage() {
           {customer.quotations.length === 0 && <p className="muted">{t('noRecords')}</p>}
           {customer.quotations.map((q) => (
             <div key={q.id}>
-              <Row label={`${q.number} · ${q.status}`} value={pkr(q.total)} />
+              <Row label={q.number} value={pkr(q.total)} /><Status value={q.status} />
               {q.status === 'sent' && <div className="artwork">
                 <button type="button" className="btn primary" onClick={() => post(`/portal/customer/quotations/${q.id}/accept`)}>{t('approve')}</button>
                 <button type="button" className="btn" onClick={() => post(`/portal/customer/quotations/${q.id}/reject`)}>{t('rejectItem')}</button>
@@ -52,8 +53,8 @@ export default function PortalPage() {
           {customer.orders.length === 0 && <p className="muted">{t('noRecords')}</p>}
           {customer.orders.map((o) => (
             <div key={o.id}>
-              <Row label={`${o.number} · ${o.status}`} value={pkr(o.total)} />
-              {customer.placements.filter((p) => p.orderId === o.id).map((p) => <small className="muted" key={p.id}>{p.formatCode} · {p.date} · {p.status}</small>)}
+              <Row label={o.number} value={pkr(o.total)} /><Status value={o.status} />
+              {customer.placements.filter((p) => p.orderId === o.id).map((p) => <small className="muted" key={p.id}>{t(p.formatCode as DictKey) ?? p.formatCode} · {p.date}</small>)}
             </div>
           ))}
         </Card>
@@ -67,7 +68,7 @@ export default function PortalPage() {
           {supplier.length === 0 && <p className="muted">{t('noRecords')}</p>}
           {supplier.map((b) => (
             <div key={b.id}>
-              <Row label={`${b.number} · ${b.outletName}`} value={`${b.formatCode} · ${b.requestedDate} · ${b.status}`} />
+              <Row label={`${b.number} · ${b.outletName}`} value={`${t(b.formatCode as DictKey) ?? b.formatCode} · ${b.requestedDate}`} /><Status value={b.status} />
               {(b.status === 'submitted' || b.status === 'reschedule_requested') && <div className="artwork">
                 <button type="button" className="btn primary" onClick={() => post(`/portal/supplier/bookings/${b.id}/respond`, { status: 'confirmed' })}>{t('approve')}</button>
                 <button type="button" className="btn" onClick={() => post(`/portal/supplier/bookings/${b.id}/respond`, { status: 'rejected' })}>{t('rejectItem')}</button>

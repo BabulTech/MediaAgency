@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useState } from 'react';
-import { Card, Field, Result, Row, useLoad } from '@/components/ui';
+import { Card, Field, Row, useLoad } from '@/components/ui';
 import { api } from '@/lib/api';
 import { DictKey } from '@/lib/dict';
 import { useI18n } from '@/lib/i18n';
@@ -16,7 +16,7 @@ export default function DashboardPage() {
   const [to, setTo] = useState('');
   const { data, error } = useLoad<Dash | null>(() => api<Dash>(`/dashboard?from=${from}&to=${to}`), null, [from, to]);
   const { data: alerts } = useLoad(() => api<Alert[]>('/alerts'), [] as Alert[]);
-  if (error) return <p className="error">{t('accessDenied')}</p>;
+  if (error) return <p className="error">{t('loadFailed')}</p>;
   if (!data) return null;
   const list = (title: DictKey, rows: Group[]) => (
     <Card title={t(title)}>
@@ -31,14 +31,12 @@ export default function DashboardPage() {
         <Field label={t('startDate')}><input className="input" type="date" dir="ltr" value={from} onChange={(e) => setFrom(e.target.value)} /></Field>
         <Field label={t('endDate')}><input className="input" type="date" dir="ltr" value={to} onChange={(e) => setTo(e.target.value)} /></Field>
       </div>
-      <Card>
-        <Result label={t('totalSales')} value={pkr(data.sales)} />
-        <Row label={t('placements')} value={String(data.placements)} />
-        <Row label={t('activeCampaigns')} value={String(data.activeCampaigns)} />
-        <Row label={t('pendingApprovals')} value={String(data.pendingApprovals)} />
-        <Row label={t('pendingBookings')} value={String(data.pendingBookings)} />
-        <Row label={t('proofsPending')} value={String(data.proofsPending)} />
-      </Card>
+      <div className="stats">
+        <div className="stat lead"><span>{t('totalSales')}</span><strong>{pkr(data.sales)}</strong></div>
+        {(['placements', 'activeCampaigns', 'pendingApprovals', 'pendingBookings', 'proofsPending'] as const).map((k) => (
+          <div className="stat" key={k}><span>{t(k)}</span><strong>{data[k]}</strong></div>
+        ))}
+      </div>
       <Card title={t('alerts')}>
         {alerts.length === 0 && <p className="muted">{t('noRecords')}</p>}
         {alerts.map((a, i) => <Link className="row" key={i} href={a.href}><span>{t(a.kind as DictKey)}</span><small className="muted">{a.title}</small></Link>)}

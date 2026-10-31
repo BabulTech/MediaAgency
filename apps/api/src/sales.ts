@@ -73,7 +73,7 @@ export class SalesController {
       this.db.select().from(s.customers).where(eq(s.customers.id, q.customerId)),
       this.db.select({ l: s.quotationLines, outletName: s.mediaOutlets.name }).from(s.quotationLines).innerJoin(s.mediaOutlets, eq(s.quotationLines.outletId, s.mediaOutlets.id)).where(eq(s.quotationLines.quotationId, q.id)),
     ]);
-    return { agency: tenant.name, number: q.number, date: q.createdAt.toISOString().slice(0, 10), dueDate: q.validUntil, party: customer.name, status: q.status, total: q.total,
+    return { agency: tenant.name, company: { address: tenant.address, phone: tenant.phone, email: tenant.email, ntn: tenant.ntn, bankDetails: tenant.bankDetails }, number: q.number, date: q.createdAt.toISOString().slice(0, 10), dueDate: q.validUntil, party: customer.name, status: q.status, total: q.total,
       lines: rows.map((r) => ({ description: `${r.outletName} · ${r.l.formatCode} · ${r.l.date}`, amount: r.l.net })) };
   }
 

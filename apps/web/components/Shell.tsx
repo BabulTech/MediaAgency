@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Bell, BarChart3, Menu, CalendarDays, LayoutDashboard, Building2, Landmark, CalendarCheck, Calculator, Contact, FileText, ShoppingCart, LogOut, Moon, Sun, Tags, Users } from 'lucide-react';
+import { Settings, Bell, BarChart3, Menu, CalendarDays, LayoutDashboard, Building2, Landmark, CalendarCheck, Calculator, Contact, FileText, ShoppingCart, LogOut, Moon, Sun, Tags, Users } from 'lucide-react';
 import { ReactNode, useEffect, useState } from 'react';
 import { api, isPortalOnly, Me } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
@@ -35,14 +35,15 @@ export function Shell({ children }: { children: ReactNode }) {
   const logout = async () => { await supabase.auth.signOut(); window.location.href = '/login'; };
   const items = portal ? [{ href: '/portal', key: 'portal', icon: Users } as const] : [...NAV,
     ...(me?.permissions.includes('finance.read') ? [{ href: '/finance', key: 'finance', icon: Landmark } as const] : []),
-    ...(me?.permissions.includes('users.read') ? [{ href: '/users', key: 'users', icon: Users } as const] : [])];
+    ...(me?.permissions.includes('users.read') ? [{ href: '/users', key: 'users', icon: Users } as const] : []),
+    ...(me?.permissions.includes('users.write') ? [{ href: '/settings', key: 'settings', icon: Settings } as const] : [])];
   const links = items.map(({ href, key, icon: Icon }) => (
     <Link key={href} href={href} aria-current={path.startsWith(href) ? 'page' : undefined}><Icon size={18} />{t(key)}</Link>
   ));
   if (isLogin || path.startsWith('/print')) return <>{children}</>;
   return (
     <div className="shell">
-      <aside className="sidebar"><b className="brand">{t('appName')}</b><nav>{links}</nav></aside>
+      <aside className="sidebar"><b className="brand"><i>M</i>{t('appName')}</b><nav>{links}</nav></aside>
       <div className="main">
         <header className="topbar">
           <b className="brand mobile-only">{t('appName')}</b>

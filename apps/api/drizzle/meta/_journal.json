@@ -120,6 +120,13 @@
       "when": 1793458643377,
       "tag": "0016_portal_access",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1793459446800,
+      "tag": "0017_fat_genesis",
+      "breakpoints": true
     }
   ]
 }

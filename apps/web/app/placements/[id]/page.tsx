@@ -1,8 +1,9 @@
 'use client';
 import { ChangeEvent, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Card, Field, Select, useLoad } from '@/components/ui';
+import { Card, Field, Select, Status, useLoad } from '@/components/ui';
 import { api } from '@/lib/api';
+import { DictKey } from '@/lib/dict';
 import { useI18n } from '@/lib/i18n';
 
 type Booking = { id: string; number: string; status: string; supplierReference: string | null };
@@ -60,20 +61,20 @@ export default function PlacementPage() {
 
   return (
     <div className="stack">
-      <h1>{p.formatCode} · {p.date}</h1>
-      <p className="muted">{p.status}</p>
+      <h1>{t(p.formatCode as DictKey) ?? p.formatCode} · {p.date}</h1>
+      <Status value={p.status} />
       {message && <p className="error">{message}</p>}
 
       <Card title={t('bookings')}>
         {bookings.map((b) => (
           <div key={b.id}>
             <a className="btn" target="_blank" href={`/print/booking/${b.id}`}>{t('printPdf')}</a>
-            <div className="row"><b>{b.number}</b><small className="muted">{b.status}{b.supplierReference ? ` · ${b.supplierReference}` : ''}</small></div>
+            <div className="row"><b>{b.number}</b><span className="row-end">{b.supplierReference && <small className="muted">{b.supplierReference}</small>}<Status value={b.status} /></span></div>
             {NEXT[b.status] && (
               <div className="stack">
                 <Field label={t('supplierReference')}><input className="input" dir="ltr" value={reference} onChange={(e) => setReference(e.target.value)} /></Field>
                 <div className="artwork" style={{ flexWrap: 'wrap' }}>
-                  {NEXT[b.status].map((s) => <button key={s} type="button" className="btn" onClick={() => post(`/bookings/${b.id}/status`, { status: s, supplierReference: reference || undefined })}>{s}</button>)}
+                  {NEXT[b.status].map((s) => <button key={s} type="button" className="btn" onClick={() => post(`/bookings/${b.id}/status`, { status: s, supplierReference: reference || undefined })}>{t(`status_${s}` as DictKey)}</button>)}
                 </div>
               </div>
             )}
@@ -85,7 +86,7 @@ export default function PlacementPage() {
       <Card title={t('artwork')}>
         {creatives.map((c) => (
           <div className="row" key={c.id}>
-            <span><button type="button" className="btn" onClick={() => open(c.storagePath)}>v{c.version} · {c.fileName}</button><br /><small className="muted">{c.status}</small></span>
+            <span><button type="button" className="btn" onClick={() => open(c.storagePath)}>v{c.version} · {c.fileName}</button><br /><Status value={c.status} /></span>
             {c.status === 'pending' && <span className="artwork">
               <button type="button" className="btn" onClick={() => post(`/creatives/${c.id}/review`, { approved: true })}>{t('approve')}</button>
               <button type="button" className="btn" onClick={() => post(`/creatives/${c.id}/review`, { approved: false })}>{t('rejectItem')}</button>
@@ -98,7 +99,7 @@ export default function PlacementPage() {
       <Card title={t('proofs')}>
         {proofs.map((r) => (
           <div className="row" key={r.id}>
-            <span><button type="button" className="btn" onClick={() => open(r.storagePath)}>{r.fileName}</button><br /><small className="muted">{r.kind} · {r.actualDate} · {r.status}</small></span>
+            <span><button type="button" className="btn" onClick={() => open(r.storagePath)}>{r.fileName}</button><br /><small className="muted">{t(`status_${r.kind}` as DictKey)} · {r.actualDate}</small> <Status value={r.status} /></span>
             {r.status === 'uploaded' && <span className="artwork">
               <button type="button" className="btn" onClick={() => post(`/proofs/${r.id}/review`, { approved: true })}>{t('verify')}</button>
               <button type="button" className="btn" onClick={() => post(`/proofs/${r.id}/review`, { approved: false })}>{t('rejectItem')}</button>
@@ -106,7 +107,7 @@ export default function PlacementPage() {
           </div>
         ))}
         <div className="grid2 mt">
-          <Select label={t('kind')} value={kind} onChange={setKind} options={KINDS.map((k) => ({ value: k, label: k }))} />
+          <Select label={t('kind')} value={kind} onChange={setKind} options={KINDS.map((k) => ({ value: k, label: t(`status_${k}` as DictKey) }))} />
           <Field label={t('actualDate')}><input className="input" type="date" dir="ltr" value={actualDate} onChange={(e) => setActualDate(e.target.value)} /></Field>
           <div className="span2"><input className="input" type="file" accept="image/*,video/*,application/pdf" capture="environment" aria-label={t('proofs')} disabled={!actualDate} onChange={upload((path, fileName) => post(`/placements/${id}/proofs`, { path, fileName, kind, actualDate }))} /></div>
         </div>

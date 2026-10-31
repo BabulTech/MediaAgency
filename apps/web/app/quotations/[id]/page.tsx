@@ -1,8 +1,10 @@
 'use client';
 import { FormEvent, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Card, Field, NumberField, Result, Row, Select, SliderField, useLoad } from '@/components/ui';
-import { api, Outlet } from '@/lib/api';
+import { Card, Field, NumberField, Result, Select, SliderField, Status, useLoad } from '@/components/ui';
+import { api, Category, Outlet } from '@/lib/api';
+import { DictKey } from '@/lib/dict';
+import { PAPER_FORMATS, TIME_BANDS, TV_FORMATS } from '@/lib/media';
 import { useI18n } from '@/lib/i18n';
 
 type Line = { id: string; formatCode: string; date: string; net: string; supplierCost: string | null; outletId: string };
@@ -14,11 +16,11 @@ export default function QuotationPage() {
   const router = useRouter();
   const [version, setVersion] = useState(0);
   const [message, setMessage] = useState('');
-  const [line, setLine] = useState({ outletId: '', formatCode: 'display', date: '', timeBandCode: '', widthCm: 9, heightCm: 15, insertions: 1, durationSeconds: 30, spots: 1, words: 0, lines: 0, discountPercent: 0 });
+  const [line, setLine] = useState({ outletId: '', formatCode: '', date: '', timeBandCode: '', widthCm: 9, heightCm: 15, insertions: 1, durationSeconds: 30, spots: 1, words: 0, lines: 0, discountPercent: 0 });
   const { data, error } = useLoad(async () => {
-    const [detail, outlets] = await Promise.all([api<Detail>(`/quotations/${id}`), api<Outlet[]>('/outlets')]);
-    return { detail, outlets };
-  }, null as { detail: Detail; outlets: Outlet[] } | null, [version]);
+    const [detail, outlets, categories] = await Promise.all([api<Detail>(`/quotations/${id}`), api<Outlet[]>('/outlets'), api<Category[]>('/categories')]);
+    return { detail, outlets, categories };
+  }, null as { detail: Detail; outlets: Outlet[]; categories: Category[] } | null, [version]);
 
   const call = async (path: string, init: RequestInit = { method: 'POST', body: '{}' }) => {
     setMessage('');
@@ -36,30 +38,33 @@ export default function QuotationPage() {
   if (!data) return null;
   const { quotation: q, lines } = data.detail;
   const outletId = line.outletId || data.outlets[0]?.id || '';
+  const outlet = data.outlets.find((o) => o.id === outletId);
+  const isTv = data.categories.find((c) => c.id === outlet?.categoryId)?.code === 'tv';
+  const formatCode = line.formatCode || (isTv ? 'tvc' : 'display');
   const outletName = (oid: string) => data.outlets.find((o) => o.id === oid)?.name ?? '';
   const n = (k: keyof typeof line) => line[k] as number;
   const setN = (k: keyof typeof line) => (v: number) => setLine({ ...line, [k]: v });
 
   async function add(e: FormEvent) {
     e.preventDefault();
-    const { widthCm, heightCm, insertions, durationSeconds, spots, words, lines: textLines, discountPercent, formatCode, date, timeBandCode } = line;
+    const { widthCm, heightCm, insertions, durationSeconds, spots, discountPercent, date, timeBandCode } = line;
     await call(`/quotations/${id}/lines`, { method: 'POST', body: JSON.stringify({
       outletId, formatCode, date, timeBandCode: timeBandCode || undefined, discountPercent,
-      quantity: { widthCm, heightCm, insertions, durationSeconds, spots, words, lines: textLines },
+      quantity: isTv ? { durationSeconds, spots } : { widthCm, heightCm, insertions },
     }) });
   }
 
   return (
     <div className="stack">
       <h1>{q.number}</h1>
-      <p className="muted">{q.status}</p>
+      <Status value={q.status} />
       <a className="btn" target="_blank" href={`/print/quotation/${id}`}>{t('printPdf')}</a>
       {message && <p className="error">{message}</p>}
       <Card title={t('placements')}>
         {lines.length === 0 && <p className="muted">{t('noRecords')}</p>}
         {lines.map((l) => (
           <div className="row" key={l.id}>
-            <span><b>{outletName(l.outletId)}</b><br /><small className="muted">{l.formatCode} · {l.date}{l.supplierCost ? ` · ${t('supplier')} ${pkr(l.supplierCost)}` : ''}</small></span>
+            <span><b>{outletName(l.outletId)}</b><br /><small className="muted">{t(l.formatCode as DictKey) ?? l.formatCode} · {l.date}{l.supplierCost ? ` · ${t('supplier')} ${pkr(l.supplierCost)}` : ''}</small></span>
             <span><b>{pkr(l.net)}</b>{q.status === 'draft' && <> <button type="button" className="btn" onClick={() => call(`/quotations/${id}/lines/${l.id}`, { method: 'DELETE' })}>{t('removeArtwork')}</button></>}</span>
           </div>
         ))}
@@ -68,18 +73,20 @@ export default function QuotationPage() {
       {q.status === 'draft' && (
         <Card title={t('addPlacement')}>
           <form className="grid2" onSubmit={add}>
-            <Select label={t('outlets')} value={outletId} onChange={(v) => setLine({ ...line, outletId: v })} options={data.outlets.map((o) => ({ value: o.id, label: o.name }))} />
-            <Field label={t('format')}><input className="input" dir="ltr" required value={line.formatCode} onChange={(e) => setLine({ ...line, formatCode: e.target.value })} /></Field>
+            <Select label={t('outlets')} value={outletId} onChange={(v) => setLine({ ...line, outletId: v, formatCode: '', timeBandCode: '' })} options={data.outlets.map((o) => ({ value: o.id, label: o.name }))} />
+            <Select label={t('format')} value={formatCode} onChange={(v) => setLine({ ...line, formatCode: v })} options={(isTv ? TV_FORMATS : PAPER_FORMATS).map((f) => ({ value: f, label: t(f) }))} />
             <Field label={t('publishDate')}><input className="input" type="date" dir="ltr" required value={line.date} onChange={(e) => setLine({ ...line, date: e.target.value })} /></Field>
-            <Field label={t('timeBand')}><input className="input" dir="ltr" value={line.timeBandCode} onChange={(e) => setLine({ ...line, timeBandCode: e.target.value })} /></Field>
-            <NumberField label={t('width')} value={n('widthCm')} onChange={setN('widthCm')} />
-            <NumberField label={t('height')} value={n('heightCm')} onChange={setN('heightCm')} />
-            <NumberField label={t('insertions')} value={n('insertions')} onChange={setN('insertions')} />
-            <NumberField label={t('duration')} value={n('durationSeconds')} onChange={setN('durationSeconds')} />
-            <NumberField label={t('spots')} value={n('spots')} onChange={setN('spots')} />
-            <NumberField label={t('words')} value={n('words')} onChange={setN('words')} />
+            {isTv ? <>
+              <Select label={t('timeBand')} value={line.timeBandCode} onChange={(v) => setLine({ ...line, timeBandCode: v })} options={[{ value: '', label: '—' }, ...TIME_BANDS.map((b) => ({ value: b, label: t(b) }))]} />
+              <NumberField label={t('duration')} value={n('durationSeconds')} onChange={setN('durationSeconds')} />
+              <NumberField label={t('spots')} value={n('spots')} onChange={setN('spots')} />
+            </> : <>
+              <NumberField label={t('width')} value={n('widthCm')} onChange={setN('widthCm')} />
+              <NumberField label={t('height')} value={n('heightCm')} onChange={setN('heightCm')} />
+              <NumberField label={t('insertions')} value={n('insertions')} onChange={setN('insertions')} />
+            </>}
             <SliderField label={t('discount')} unit="%" value={n('discountPercent')} min={0} max={30} onChange={setN('discountPercent')} />
-            <div className="span2"><button className="btn primary">{t('save')}</button></div>
+            <div className="span2"><button className="btn primary">{t('addPlacement')}</button></div>
           </form>
         </Card>
       )}

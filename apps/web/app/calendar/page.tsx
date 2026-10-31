@@ -16,7 +16,7 @@ export default function CalendarPage() {
   return (
     <div className="stack">
       <h1>{t('calendar')}</h1>
-      {error && <p className="error">{t('accessDenied')}</p>}
+      {error && <p className="error">{t('loadFailed')}</p>}
       <Field label={t('startDate')}><input className="input" type="date" dir="ltr" value={from} onChange={(e) => setFrom(e.target.value)} /></Field>
       {days.length === 0 && <p className="muted">{t('noRecords')}</p>}
       {days.map((d) => (
