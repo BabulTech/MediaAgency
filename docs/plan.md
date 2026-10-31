@@ -33,8 +33,12 @@ Rule 9.3 note: rule stacking, rule-level premiums and tax rules are not in the e
 
 Deliverables not yet produced: full SRS, ERD, permission matrix, Swagger, Docker config, admin and user guides.
 
-Supabase: database, Auth login and password recovery are live. Storage, MFA, and per-tenant RLS policies are next.
+Supabase: database, Auth login and password recovery are live. Storage arrives with creative management.
+
+## Deferred to the end, by owner decision
+
+MFA, per-tenant RLS policies, rate limiting, API certificate verification, and field and ownership permissions. All must be done before production.
 
 ## Next step
 
-Finish the Phase 1 gaps above, then Phase 2 rate card editing. The API must stay on loopback until RLS, rate limiting and TLS exist. Sessions are local to the API; moving to Supabase Auth only replaces the login and session lookup in apps/api/src/auth.ts.
+Core features first: Phase 2 rate card editing, then Phase 3 CRM and sales. The API must stay on loopback until RLS, rate limiting and TLS exist. Sessions are local to the API; moving to Supabase Auth only replaces the login and session lookup in apps/api/src/auth.ts.

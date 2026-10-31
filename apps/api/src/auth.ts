@@ -15,7 +15,10 @@ export interface IdentityProvider {
 }
 export const IDENTITY = Symbol('IDENTITY');
 
+const VERIFY_CACHE_MS = 30_000;
+
 export function supabaseIdentity(): IdentityProvider {
+  const verified = new Map<string, { id: string; until: number }>();
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const service = process.env.SUPABASE_SERVICE_ROLE_KEY!;
   const admin = (path: string, method: string, body: unknown) => fetch(`${url}/auth/v1/admin/users${path}`, {
@@ -23,8 +26,14 @@ export function supabaseIdentity(): IdentityProvider {
   });
   return {
     async verify(token) {
+      const hit = verified.get(token);
+      if (hit && hit.until > Date.now()) return hit.id;
       const res = await fetch(`${url}/auth/v1/user`, { headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, Authorization: `Bearer ${token}` } });
-      return res.ok ? ((await res.json()) as { id: string }).id : null;
+      if (!res.ok) { verified.delete(token); return null; }
+      const { id } = (await res.json()) as { id: string };
+      if (verified.size > 5000) verified.clear();
+      verified.set(token, { id, until: Date.now() + VERIFY_CACHE_MS });
+      return id;
     },
     async create(email, password) {
       const res = await admin('', 'POST', { email, password, email_confirm: true });
