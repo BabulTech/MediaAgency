@@ -175,3 +175,47 @@ describe('customers and campaigns', () => {
     expect((await mk('No', 'ro@example.com')).status).toBe(403);
   });
 });
+
+describe('quotations and orders', () => {
+  const go = (id: string, step: string, t = token) => post(`/v1/quotations/${id}/${step}`, {}, t);
+  const setup = async (discountPercent = 0) => {
+    const cust = await (await post('/v1/customers', { name: 'Q' })).json();
+    const q = await (await post('/v1/quotations', { customerId: cust.id, validUntil: '2026-12-31' })).json();
+    const o = await outlet('SAMPLE-TV');
+    const res = await post(`/v1/quotations/${q.id}/lines`, { outletId: o.id, formatCode: 'tvc', date: '2026-11-02', timeBandCode: 'special', discountPercent, quantity: { durationSeconds: 30, spots: 5 } });
+    return { q, line: await res.json(), status: res.status };
+  };
+  it('prices lines on the server and totals the quotation', async () => {
+    const { q, line } = await setup();
+    expect(line.snapshot.breakdown.total).toBe('675000.00');
+    const d = await (await fetch(`${url}/v1/quotations/${q.id}`, { headers: headers(token) })).json();
+    expect(d.quotation.total).toBe('675000.0000');
+  });
+  it('requires approval above the discount limit', async () => {
+    const { q } = await setup(20);
+    expect((await (await go(q.id, 'submit')).json()).status).toBe('pending_approval');
+    expect((await go(q.id, 'send')).status).toBe(409);
+    expect((await go(q.id, 'approve', 'ro@example.com')).status).toBe(403);
+    expect((await (await go(q.id, 'approve')).json()).status).toBe('approved');
+  });
+  it('turns acceptance into exactly one order with frozen prices', async () => {
+    const { q } = await setup();
+    await go(q.id, 'submit'); await go(q.id, 'send');
+    const [a, b] = await Promise.all([go(q.id, 'accept'), go(q.id, 'accept')]);
+    expect([a.status, b.status].sort()).toEqual([201, 409]);
+    const o = await (a.status === 201 ? a : b).json();
+    const d = await (await fetch(`${url}/v1/orders/${o.id}`, { headers: headers(token) })).json();
+    expect(d.placements.length).toBe(1);
+    expect(d.placements[0].placement.net).toBe('675000.0000');
+    expect((await post(`/v1/orders/${o.id}/cancel`, {})).status).toBe(201);
+    expect((await post(`/v1/orders/${o.id}/cancel`, {})).status).toBe(409);
+  });
+  it('locks lines after submission and refuses unpriced lines', async () => {
+    const { q } = await setup();
+    await go(q.id, 'submit');
+    const o = await outlet('SAMPLE-TV');
+    expect((await post(`/v1/quotations/${q.id}/lines`, { outletId: o.id, formatCode: 'tvc', date: '2026-11-02', quantity: {} })).status).toBe(409);
+    const fresh = await (await post('/v1/quotations', { customerId: q.customerId, validUntil: '2026-12-31' })).json();
+    expect((await post(`/v1/quotations/${fresh.id}/lines`, { outletId: o.id, formatCode: 'ticker', date: '2026-11-02', quantity: {} })).status).toBe(422);
+  });
+});

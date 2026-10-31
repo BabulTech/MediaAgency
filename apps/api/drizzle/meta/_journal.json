@@ -64,6 +64,20 @@
       "when": 1793455852127,
       "tag": "0008_crm_access",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793457054371,
+      "tag": "0009_colossal_katie_power",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793457061611,
+      "tag": "0010_sales_access",
+      "breakpoints": true
     }
   ]
 }

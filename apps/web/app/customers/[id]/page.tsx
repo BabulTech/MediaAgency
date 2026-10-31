@@ -12,6 +12,7 @@ export default function CustomerPage() {
   const { t, pkr } = useI18n();
   const [version, setVersion] = useState(0);
   const [message, setMessage] = useState('');
+  const [edit, setEdit] = useState<Partial<Customer> | null>(null);
   const [contact, setContact] = useState({ name: '', phone: '', email: '' });
   const [campaign, setCampaign] = useState({ name: '', startDate: '', endDate: '', budget: '' });
   const { data, error } = useLoad<Detail | null>(() => api<Detail>(`/customers/${id}`), null, [version]);
@@ -21,6 +22,15 @@ export default function CustomerPage() {
     try {
       await api(path, { method: 'POST', body: JSON.stringify(body) });
       reset(); setVersion((v) => v + 1);
+    } catch { setMessage(t('saveFailed')); }
+  };
+
+  const saveEdit = async (e: FormEvent) => {
+    e.preventDefault();
+    setMessage('');
+    try {
+      await api(`/customers/${id}`, { method: 'PATCH', body: JSON.stringify(edit) });
+      setEdit(null); setVersion((v) => v + 1);
     } catch { setMessage(t('saveFailed')); }
   };
 
@@ -39,6 +49,16 @@ export default function CustomerPage() {
         {c.city && <Row label={t('city')} value={c.city} />}
         {c.ntn && <Row label="NTN" value={c.ntn} />}
         {c.creditLimit && <Row label={t('creditLimit')} value={pkr(c.creditLimit)} />}
+        {!edit && <button type="button" className="btn" onClick={() => { const { name, type, phone, email, city, ntn, creditLimit, status } = c; setEdit({ name, type, phone, email, city, ntn, creditLimit, status }); }}>{t('edit')}</button>}
+        {edit && (
+          <form className="grid2 mt" onSubmit={saveEdit}>
+            <Field label={t('name')}><input className="input" required value={edit.name ?? ''} onChange={(e) => setEdit({ ...edit, name: e.target.value })} /></Field>
+            <Field label={t('phone')}><input className="input" type="tel" dir="ltr" value={edit.phone ?? ''} onChange={(e) => setEdit({ ...edit, phone: e.target.value })} /></Field>
+            <Field label={t('email')}><input className="input" type="email" dir="ltr" value={edit.email ?? ''} onChange={(e) => setEdit({ ...edit, email: e.target.value })} /></Field>
+            <Field label={t('city')}><input className="input" value={edit.city ?? ''} onChange={(e) => setEdit({ ...edit, city: e.target.value })} /></Field>
+            <div className="span2"><button className="btn primary">{t('save')}</button></div>
+          </form>
+        )}
       </Card>
       <Card title={t('contacts')}>
         {contacts.map((x) => <Row key={x.id} label={x.name} value={[x.phone, x.email].filter(Boolean).join(' · ')} />)}

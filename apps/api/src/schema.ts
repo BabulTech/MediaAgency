@@ -97,3 +97,32 @@ export const campaigns = pgTable('campaigns', {
   budget: money('budget'), ownerId: uuid('owner_id').references(() => users.id), status: text('status').notNull().default('planned'), description: text('description'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const quotations = pgTable('quotations', {
+  id: id(), tenantId: tenantId(), number: text('number').notNull(), customerId: uuid('customer_id').notNull().references(() => customers.id),
+  campaignId: uuid('campaign_id').references(() => campaigns.id), status: text('status').notNull().default('draft'),
+  validUntil: date('valid_until').notNull(), total: money('total').notNull().default('0'), createdBy: uuid('created_by').references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [unique().on(t.tenantId, t.number)]);
+
+export const quotationLines = pgTable('quotation_lines', {
+  id: id(), tenantId: tenantId(), quotationId: uuid('quotation_id').notNull().references(() => quotations.id),
+  outletId: uuid('outlet_id').notNull().references(() => mediaOutlets.id), formatCode: text('format_code').notNull(), date: date('date').notNull(),
+  request: jsonb('request').notNull(), snapshot: jsonb('snapshot').notNull(), discountPercent: numeric('discount_percent', { precision: 5, scale: 2 }).notNull().default('0'),
+  net: money('net').notNull(), supplierCost: money('supplier_cost'),
+});
+
+export const orders = pgTable('orders', {
+  id: id(), tenantId: tenantId(), number: text('number').notNull(), customerId: uuid('customer_id').notNull().references(() => customers.id),
+  campaignId: uuid('campaign_id').references(() => campaigns.id), quotationId: uuid('quotation_id').references(() => quotations.id).unique(),
+  status: text('status').notNull().default('confirmed'), total: money('total').notNull(), createdBy: uuid('created_by').references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [unique().on(t.tenantId, t.number)]);
+
+export const placements = pgTable('placements', {
+  id: id(), tenantId: tenantId(), orderId: uuid('order_id').notNull().references(() => orders.id),
+  quotationLineId: uuid('quotation_line_id').references(() => quotationLines.id).unique(),
+  outletId: uuid('outlet_id').notNull().references(() => mediaOutlets.id), formatCode: text('format_code').notNull(), date: date('date').notNull(),
+  request: jsonb('request').notNull(), snapshot: jsonb('snapshot').notNull(), net: money('net').notNull(), supplierCost: money('supplier_cost'),
+  status: text('status').notNull().default('pending'),
+});
