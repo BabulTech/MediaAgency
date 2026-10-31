@@ -30,7 +30,8 @@
 | 3 CRM and sales | Mostly done: customers, contacts, campaigns, quotations, orders, placements with frozen prices, discount approval above 10%. No PDFs, quotation revisions, order amendments or general approval engine |
 | 4 Booking and operations | Mostly done: supplier bookings, artwork versions, proofs, private file storage. No booking PDFs, TV calendar, schedule discrepancy flags or spec validation |
 | 5 Finance | Mostly done: invoices, supplier bills, payments, advances, credit notes, aging, quoted, committed and actual margin. No PDFs, refunds, ledgers, consolidated tax rules or withholding |
-| 6 to 7 | Not started: dashboards, reports, portals |
+| 6 Reporting | Partial: one dashboard, 5 of 30 reports, CSV export, calendar list, live alerts. No role dashboards, charts, report builder, email, read status or scheduled jobs |
+| 7 Portals | Not started: customer portal, supplier portal |
 
 Rule 9.3 note: rule stacking, rule-level premiums and tax rules are not in the engine yet. Radio, digital and outdoor calculators are also outstanding.
 

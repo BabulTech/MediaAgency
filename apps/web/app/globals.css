@@ -120,3 +120,9 @@ select.input option { background:var(--surface); color:var(--text); }
   .bottomnav a[aria-current] { color:var(--text); }
 }
 .login { min-height:100dvh; display:grid; place-items:center; padding:16px; } .login .card { width:min(400px,100%); }
+
+.sidebar { overflow-y:auto; }
+.bell { position:relative; }
+.bell span { position:absolute; top:-6px; inset-inline-end:-6px; min-width:18px; padding:0 4px; border-radius:9px; background:var(--danger); color:var(--bg); font-size:.7rem; line-height:18px; text-align:center; }
+.table { width:100%; border-collapse:collapse; font-size:.9rem; }
+.table th, .table td { padding:8px; text-align:start; border-bottom:1px solid var(--line); white-space:nowrap; }

@@ -362,3 +362,42 @@ describe('finance', () => {
     expect((await fetch(`${url}/v1/finance/summary`, { headers: headers('ro@example.com') })).status).toBe(403);
   });
 });
+
+describe('reports and dashboard', () => {
+  const get = async (p: string, t = token) => (await fetch(url + p, { headers: headers(t) })).json();
+  it('agrees with placements and excludes cancelled orders', async () => {
+    const before = await get('/v1/dashboard?from=2030-01-01&to=2030-12-31');
+    expect(before.sales).toBe('0.00');
+    const cust = await (await post('/v1/customers', { name: 'Report Co' })).json();
+    const mk = async () => {
+      const q = await (await post('/v1/quotations', { customerId: cust.id, validUntil: '2030-12-31' })).json();
+      const o = await outlet('SAMPLE-TV');
+      await post(`/v1/quotations/${q.id}/lines`, { outletId: o.id, formatCode: 'tvc', date: '2030-03-01', quantity: { durationSeconds: 10, spots: 1 } });
+      for (const step of ['submit', 'send']) await post(`/v1/quotations/${q.id}/${step}`, {});
+      return (await post(`/v1/quotations/${q.id}/accept`, {})).json();
+    };
+    await mk();
+    const gone = await mk();
+    await post(`/v1/orders/${gone.id}/cancel`, {});
+    const d = await get('/v1/dashboard?from=2030-01-01&to=2030-12-31');
+    expect([d.sales, d.placements, d.monthly[0].name]).toEqual(['15000.00', 1, '2030-03']);
+    const rows = await get('/v1/reports/sales-by-customer?from=2030-01-01&to=2030-12-31');
+    expect(rows).toEqual([{ name: 'Report Co', count: 1, total: '15000.00' }]);
+    expect((await get('/v1/calendar?from=2030-03-01&to=2030-03-02')).length).toBe(1);
+  });
+  it('rejects bad dates and unknown reports', async () => {
+    expect((await fetch(`${url}/v1/dashboard?from=nope`, { headers: headers(token) })).status).toBe(400);
+    expect((await fetch(`${url}/v1/reports/nope`, { headers: headers(token) })).status).toBe(404);
+  });
+  it('alerts on a past-due unconfirmed placement', async () => {
+    const a = await get('/v1/alerts');
+    expect(a.some((x: any) => x.kind === 'unconfirmed_soon')).toBe(true);
+  });
+  it('keeps finance items away from non-finance users', async () => {
+    const a = await get('/v1/alerts', 'ro@example.com');
+    expect(a.some((x: any) => x.kind === 'invoice_overdue')).toBe(false);
+  });
+  it('keeps portal users out', async () => {
+    expect((await fetch(`${url}/v1/dashboard`, { headers: headers('cust@example.com') })).status).toBe(403);
+  });
+});
