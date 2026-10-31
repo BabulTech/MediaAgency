@@ -18,7 +18,7 @@ const migrationsFolder = join(__dirname, '..', 'drizzle');
 
 export async function openDb(opts: { memory?: boolean } = {}): Promise<Db> {
   if (process.env.DATABASE_URL && !opts.memory) {
-    const db = drizzlePg(new Pool({ connectionString: process.env.DATABASE_URL }), { schema: s });
+    const db = drizzlePg(new Pool({ connectionString: process.env.DATABASE_URL, ssl: process.env.DATABASE_URL.includes('supabase') ? { rejectUnauthorized: false } : undefined }), { schema: s });
     await migratePg(db, { migrationsFolder });
     await seed(db as unknown as Db);
     return db as unknown as Db;
