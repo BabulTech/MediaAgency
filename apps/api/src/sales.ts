@@ -169,7 +169,7 @@ export class SalesController {
   /** Acceptance creates the order. Placements copy the snapshot, so later rate changes cannot touch them. */
   @Perm('sales.write') @Post('quotations/:id/accept')
   async accept(@Req() req: any, @Param('id') id: string) {
-    const q = await this.transition(req, id, ['sent'], 'accepted');
+    const q = await this.transition(req, id, ['sent', 'approved'], 'accepted');
     const lines = await this.lines(q.id);
     return this.db.transaction(async (tx) => {
       const n = await nextNumber(tx, q.tenantId, 'order');

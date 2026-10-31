@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { Card, Result, Status, useLoad } from '@/components/ui';
 import { api } from '@/lib/api';
 import { DictKey } from '@/lib/dict';
+import { History } from '@/components/History';
 import { useI18n } from '@/lib/i18n';
 
 type Detail = {
@@ -40,6 +41,7 @@ export default function OrderPage() {
         ))}
         <Result label={t('paperResult')} value={pkr(data.order.total)} />
       </Card>
+      <History entity="order" id={id} version={version} />
       {data.order.status === 'confirmed' && <button type="button" className="btn" onClick={cancel}>{t('cancelOrder')}</button>}
     </div>
   );

@@ -1,6 +1,6 @@
 import { BadRequestException, Controller, ForbiddenException, Get, Inject, NotFoundException, Param, Query, Req } from '@nestjs/common';
 import { sumMoney } from '@mamp/pricing';
-import { and, eq, gte, inArray, lte, ne } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, lte, ne } from 'drizzle-orm';
 import { Perm } from './auth';
 import { DB, Db } from './db';
 import { REPORTS, runReport, totals } from './report-catalog';
@@ -59,6 +59,14 @@ export class ReportsController {
       topCustomers: totals(rows, (r) => r.customerName, (r) => r.p.net).slice(0, 5),
       topOutlets: totals(rows, (r) => r.outletName, (r) => r.p.net).slice(0, 5),
     };
+  }
+
+  @Perm('sales.read') @Get('history/:entity/:id')
+  history(@Req() req: any, @Param('entity') entity: string, @Param('id') id: string) {
+    if (!['customer', 'campaign', 'quotation', 'order', 'booking', 'rate_card'].includes(entity) || !/^[0-9a-f-]{36}$/.test(id)) throw new NotFoundException({ code: 'NOT_FOUND' });
+    return this.db.select({ id: s.auditLogs.id, action: s.auditLogs.action, createdAt: s.auditLogs.createdAt, user: s.users.name }).from(s.auditLogs)
+      .leftJoin(s.users, eq(s.auditLogs.changedBy, s.users.id))
+      .where(and(eq(s.auditLogs.tenantId, req.user.tenantId), eq(s.auditLogs.entity, entity), eq(s.auditLogs.recordId, id))).orderBy(desc(s.auditLogs.createdAt)).limit(100);
   }
 
   /** Only the reports this person may run. */

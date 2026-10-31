@@ -5,6 +5,7 @@ import { Card, Field, NumberField, Result, Select, SliderField, Status, useLoad 
 import { api, Category, Outlet } from '@/lib/api';
 import { DictKey } from '@/lib/dict';
 import { OTHER_FORMATS, OtherKind, PAPER_FORMATS, TIME_BANDS, TV_FORMATS } from '@/lib/media';
+import { History } from '@/components/History';
 import { useI18n } from '@/lib/i18n';
 
 type Line = { id: string; formatCode: string; date: string; net: string; supplierCost: string | null; outletId: string };
@@ -46,6 +47,8 @@ export default function QuotationPage() {
   const outletName = (oid: string) => data.outlets.find((o) => o.id === oid)?.name ?? '';
   const n = (k: keyof typeof line) => line[k] as number;
   const setN = (k: keyof typeof line) => (v: number) => setLine({ ...line, [k]: v });
+
+  const createOrder = async () => { const o = await call(`/quotations/${id}/accept`); if (o?.id) router.push(`/orders/${o.id}`); };
 
   async function add(e: FormEvent) {
     e.preventDefault();
@@ -106,13 +109,17 @@ export default function QuotationPage() {
         <div className="stack">
           {q.status === 'draft' && <button type="button" className="btn primary" disabled={!lines.length} onClick={() => call(`/quotations/${id}/submit`)}>{t('submit')}</button>}
           {q.status === 'pending_approval' && <button type="button" className="btn primary" onClick={() => call(`/quotations/${id}/approve`)}>{t('approve')}</button>}
-          {q.status === 'approved' && <button type="button" className="btn primary" onClick={() => call(`/quotations/${id}/send`)}>{t('markSent')}</button>}
+          {q.status === 'approved' && <>
+            <button type="button" className="btn primary" onClick={createOrder}>{t('createOrder')}</button>
+            <button type="button" className="btn" onClick={() => call(`/quotations/${id}/send`)}>{t('markSent')}</button>
+          </>}
           {q.status === 'sent' && <>
-            <button type="button" className="btn primary" onClick={async () => { const o = await call(`/quotations/${id}/accept`); if (o?.id) router.push(`/orders/${o.id}`); }}>{t('accept')}</button>
+            <button type="button" className="btn primary" onClick={createOrder}>{t('accept')}</button>
             <button type="button" className="btn" onClick={() => call(`/quotations/${id}/reject`)}>{t('reject')}</button>
           </>}
         </div>
       </Card>
+      <History entity="quotation" id={id} version={version} />
     </div>
   );
 }

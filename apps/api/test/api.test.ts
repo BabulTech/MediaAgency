@@ -569,3 +569,17 @@ describe('security', () => {
     expect((await fetch(`${url}/v1/quotations/${q.id}`, { headers: headers('se2@example.com') })).status).toBe(404);
   });
 });
+
+describe('direct orders and history', () => {
+  it('creates an order from an approved quotation and shows who did what', async () => {
+    const cust = await (await post('/v1/customers', { name: 'Hist' })).json();
+    const q = await (await post('/v1/quotations', { customerId: cust.id, validUntil: '2026-12-31' })).json();
+    const o = await outlet('SAMPLE-TV');
+    await post(`/v1/quotations/${q.id}/lines`, { outletId: o.id, formatCode: 'tvc', date: '2026-11-02', quantity: { durationSeconds: 10, spots: 1 } });
+    await post(`/v1/quotations/${q.id}/submit`, {});
+    expect((await post(`/v1/quotations/${q.id}/accept`, {})).status).toBe(201);
+    const h = await (await fetch(`${url}/v1/history/quotation/${q.id}`, { headers: headers(token) })).json();
+    expect(h.map((x: any) => x.action)).toEqual(expect.arrayContaining(['create', 'add_line', 'accepted']));
+    expect(h[0].user).toBe('Administrator');
+  });
+});

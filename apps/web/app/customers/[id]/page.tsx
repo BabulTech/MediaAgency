@@ -3,6 +3,7 @@ import { FormEvent, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Card, Field, Row, useLoad } from '@/components/ui';
 import { api, Campaign, Contact, Customer } from '@/lib/api';
+import { History } from '@/components/History';
 import { useI18n } from '@/lib/i18n';
 
 type Detail = { customer: Customer; contacts: Contact[]; campaigns: Campaign[] };
@@ -69,6 +70,7 @@ export default function CustomerPage() {
           <div className="span2"><button className="btn primary">{t('save')}</button></div>
         </form>
       </Card>
+      <History entity="customer" id={id} version={version} />
       <Card title={t('campaigns')}>
         {campaigns.map((x) => <Row key={x.id} label={x.name} value={`${x.startDate} – ${x.endDate}${x.budget ? ` · ${pkr(x.budget)}` : ''}`} />)}
         <form className="grid2 mt" onSubmit={(e: FormEvent) => { e.preventDefault(); save('/campaigns', { ...campaign, customerId: id }, () => setCampaign({ name: '', startDate: '', endDate: '', budget: '' })); }}>
