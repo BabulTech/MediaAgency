@@ -27,6 +27,15 @@ export default function DashboardPage() {
   return (
     <div className="stack">
       <h1>{t('dashboard')}</h1>
+      <Card title={t('getStarted')}>
+        <p className="muted">{t('flowHint')}</p>
+        <div className="quick">
+          <Link className="btn primary" href="/customers">1. {t('addCustomerAction')}</Link>
+          <Link className="btn primary" href="/quotations">2. {t('newQuotationAction')}</Link>
+          <Link className="btn" href="/calculators">{t('calculators')}</Link>
+          <Link className="btn" href="/import">{t('importData')}</Link>
+        </div>
+      </Card>
       <div className="grid2">
         <Field label={t('startDate')}><input className="input" type="date" dir="ltr" value={from} onChange={(e) => setFrom(e.target.value)} /></Field>
         <Field label={t('endDate')}><input className="input" type="date" dir="ltr" value={to} onChange={(e) => setTo(e.target.value)} /></Field>

@@ -214,3 +214,4 @@ a.row:hover { background:var(--surface2); }
   form { display:none; }
   * { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
 }
+.quick { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }

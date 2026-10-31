@@ -13,6 +13,8 @@ export default function OrdersPage() {
   return (
     <div className="stack">
       <h1>{t('orders')}</h1>
+      <p className="muted">{t('ordersHint')}</p>
+      <div className="quick"><Link className="btn primary" href="/quotations">{t('newQuotationAction')}</Link></div>
       <ExportBar name="orders" rows={data.map((r) => ({ number: r.order.number, customer: r.customerName, status: r.order.status, total: r.order.total }))} />
       {error && <p className="error">{t('apiDown')}</p>}
       <Card>
