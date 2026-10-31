@@ -282,3 +282,83 @@ describe('operations', () => {
     expect((await post(`/v1/placements/${id}/bookings`, {})).status).toBe(409);
   });
 });
+
+describe('finance', () => {
+  const get = async (p: string) => (await fetch(url + p, { headers: headers(token) })).json();
+  let seq = 0; const key = () => `key-${++seq}-abcdef`;
+  const run = async () => {
+    const cust = await (await post('/v1/customers', { name: 'Fin' })).json();
+    const q = await (await post('/v1/quotations', { customerId: cust.id, validUntil: '2026-12-31' })).json();
+    const o = await outlet('SAMPLE-TV');
+    await post(`/v1/quotations/${q.id}/lines`, { outletId: o.id, formatCode: 'tvc', date: '2026-11-02', quantity: { durationSeconds: 10, spots: 1 } });
+    for (const step of ['submit', 'send']) await post(`/v1/quotations/${q.id}/${step}`, {});
+    const order = await (await post(`/v1/quotations/${q.id}/accept`, {})).json();
+    const d = await get(`/v1/orders/${order.id}`);
+    const placementId = d.placements[0].placement.id;
+    const b = await (await post(`/v1/placements/${placementId}/bookings`, {})).json();
+    await post(`/v1/bookings/${b.id}/status`, { status: 'confirmed' });
+    return { customerId: cust.id, placementId, bookingId: b.id, orderId: order.id };
+  };
+  const invoice = (r: any, taxPercent = 0) => post('/v1/finance/invoices', { customerId: r.customerId, placementIds: [r.placementId], invoiceDate: '2026-11-03', dueDate: '2026-12-03', taxPercent });
+  const ran = async () => { const r = await run(); await post(`/v1/bookings/${r.bookingId}/status`, { status: 'executed' }); return r; };
+
+  it('invoices only run placements, and only once', async () => {
+    const r = await run();
+    expect((await invoice(r)).status).toBe(409);
+    await post(`/v1/bookings/${r.bookingId}/status`, { status: 'executed' });
+    const inv = await (await invoice(r, 10)).json();
+    expect([inv.subtotal, inv.tax, inv.total]).toEqual(['15000.0000', '1500.0000', '16500.0000']);
+    expect((await invoice(r)).status).toBe(409);
+  });
+  it('tracks partial payment, credit and blocks overpayment', async () => {
+    const r = await ran();
+    const inv = await (await invoice(r)).json();
+    const pay = (amount: string, k = key()) => post('/v1/finance/payments', { customerId: r.customerId, amount, date: '2026-11-05', idempotencyKey: k, allocations: [{ invoiceId: inv.id, amount }] });
+    expect((await pay('5000')).status).toBe(201);
+    expect((await pay('10000.01')).status).toBe(409);
+    expect((await post(`/v1/finance/invoices/${inv.id}/credit-notes`, { amount: '1000', reason: 'Adjustment' })).status).toBe(201);
+    expect((await post(`/v1/finance/invoices/${inv.id}/credit-notes`, { amount: '9000.01', reason: 'Too much' })).status).toBe(409);
+    const list = await get('/v1/finance/invoices');
+    expect(list.find((i: any) => i.invoice.id === inv.id).balance).toBe('9000.00');
+  });
+  it('rolls back a failed payment and ignores a repeated request', async () => {
+    const r = await ran();
+    const inv = await (await invoice(r)).json();
+    const k = key();
+    const body = { customerId: r.customerId, amount: '100', date: '2026-11-05', idempotencyKey: k, allocations: [{ invoiceId: inv.id, amount: '100' }] };
+    const [a, b] = [await (await post('/v1/finance/payments', body)).json(), await (await post('/v1/finance/payments', body)).json()];
+    expect(a.id).toBe(b.id);
+    const list = await get('/v1/finance/invoices');
+    expect(list.find((i: any) => i.invoice.id === inv.id).balance).toBe('14900.00');
+    const bad = await post('/v1/finance/payments', { ...body, idempotencyKey: key(), amount: '20000', allocations: [{ invoiceId: inv.id, amount: '20000' }] });
+    expect(bad.status).toBe(409);
+    expect((await get('/v1/finance/invoices')).find((i: any) => i.invoice.id === inv.id).balance).toBe('14900.00');
+  });
+  it('keeps unallocated money as an advance', async () => {
+    const before = (await get('/v1/finance/summary')).advances;
+    const r = await run();
+    await post('/v1/finance/payments', { customerId: r.customerId, amount: '250', date: '2026-11-05', idempotencyKey: key() });
+    expect(Number((await get('/v1/finance/summary')).advances) - Number(before)).toBe(250);
+  });
+  it('bills a booking once, pays it, and shows three margins', async () => {
+    const r = await ran();
+    const body = { supplierReference: 'S-1', bookingIds: [r.bookingId], billDate: '2026-11-04', dueDate: '2026-12-04', amount: '11000' };
+    const bill = await (await post('/v1/finance/bills', body)).json();
+    expect((await post('/v1/finance/bills', body)).status).toBe(409);
+    expect((await post(`/v1/finance/bills/${bill.id}/payments`, { amount: '11000.01', date: '2026-11-05', idempotencyKey: key() })).status).toBe(409);
+    expect((await post(`/v1/finance/bills/${bill.id}/payments`, { amount: '11000', date: '2026-11-05', idempotencyKey: key() })).status).toBe(201);
+    const row = (await get('/v1/finance/profitability')).find((p: any) => p.id === r.placementId);
+    expect([row.quotedMargin, row.committedMargin, row.actualMargin]).toEqual(['3000.00', '3000.00', '4000.00']);
+  });
+  it('cancelling cascades, but not once invoiced', async () => {
+    const r = await run();
+    await post(`/v1/orders/${r.orderId}/cancel`, {});
+    expect((await get(`/v1/placements/${r.placementId}`)).bookings[0].status).toBe('cancelled');
+    const i = await ran();
+    await invoice(i);
+    expect((await post(`/v1/orders/${i.orderId}/cancel`, {})).status).toBe(409);
+  });
+  it('hides finance from sales-free read-only users', async () => {
+    expect((await fetch(`${url}/v1/finance/summary`, { headers: headers('ro@example.com') })).status).toBe(403);
+  });
+});

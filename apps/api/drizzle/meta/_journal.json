@@ -92,6 +92,20 @@
       "when": 1793457380616,
       "tag": "0012_ops_access",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793457836286,
+      "tag": "0013_new_black_queen",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793457844612,
+      "tag": "0014_finance_access",
+      "breakpoints": true
     }
   ]
 }

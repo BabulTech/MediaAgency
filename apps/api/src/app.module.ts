@@ -5,6 +5,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { AuthController, AuthGuard, IDENTITY, IdentityProvider, Perm, UsersController, supabaseIdentity } from './auth';
 import { DB, Db, rulesForOutlet } from './db';
 import { CrmController } from './crm';
+import { FinanceController } from './finance';
 import { priceRequest, toRule } from './pricing';
 import { FILES, FileStore, OperationsController, supabaseFiles } from './operations';
 import { SalesController } from './sales';
@@ -81,6 +82,6 @@ export class PricingController {
 @Module({})
 export class AppModule {
   static forDb(db: Db, identity: IdentityProvider = supabaseIdentity(), files: FileStore = supabaseFiles()): DynamicModule {
-    return { module: AppModule, controllers: [AuthController, UsersController, MediaController, RateCardsController, CrmController, SalesController, OperationsController, PricingController], providers: [{ provide: DB, useValue: db }, { provide: IDENTITY, useValue: identity }, { provide: FILES, useValue: files }, { provide: APP_GUARD, useValue: new AuthGuard(db, identity) }] };
+    return { module: AppModule, controllers: [AuthController, UsersController, MediaController, RateCardsController, CrmController, SalesController, OperationsController, FinanceController, PricingController], providers: [{ provide: DB, useValue: db }, { provide: IDENTITY, useValue: identity }, { provide: FILES, useValue: files }, { provide: APP_GUARD, useValue: new AuthGuard(db, identity) }] };
   }
 }

@@ -144,3 +144,4 @@ export function selectRule(rules: RateRule[], req: RateRequest): RateRule {
 }
 
 export const sumMoney = (values: Decimal.Value[]) => money(values.reduce<Decimal>((a, v) => a.plus(v), new Decimal(0))).toFixed(2);
+export const cmpMoney = (a: Decimal.Value, b: Decimal.Value) => new Decimal(a).cmp(b);

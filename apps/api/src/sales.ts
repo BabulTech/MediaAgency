@@ -169,9 +169,15 @@ export class SalesController {
   @Perm('sales.approve') @Post('orders/:id/cancel')
   async cancel(@Req() req: any, @Param('id') id: string) {
     return this.db.transaction(async (tx) => {
+      const invoiced = await tx.select({ id: s.customerInvoiceLines.id }).from(s.customerInvoiceLines)
+        .innerJoin(s.placements, eq(s.customerInvoiceLines.placementId, s.placements.id)).where(eq(s.placements.orderId, uuid(id)));
+      if (invoiced.length) throw new ConflictException({ code: 'ALREADY_INVOICED' });
       const [o] = await tx.update(s.orders).set({ status: 'cancelled' })
         .where(and(eq(s.orders.id, uuid(id)), eq(s.orders.tenantId, req.user.tenantId), eq(s.orders.status, 'confirmed'))).returning();
       if (!o) throw new ConflictException({ code: 'INVALID_STATUS' });
+      await tx.update(s.supplierBookings).set({ status: 'cancelled' })
+        .where(and(eq(s.supplierBookings.orderId, o.id), inArray(s.supplierBookings.status, ['submitted', 'reschedule_requested', 'confirmed'])));
+      await tx.update(s.placements).set({ status: 'cancelled' }).where(eq(s.placements.orderId, o.id));
       await this.audit(tx, req, 'order', o.id, 'cancel');
       return o;
     });

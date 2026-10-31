@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Building2, CalendarCheck, Calculator, Contact, FileText, ShoppingCart, LogOut, Moon, Sun, Tags, Users } from 'lucide-react';
+import { Building2, Landmark, CalendarCheck, Calculator, Contact, FileText, ShoppingCart, LogOut, Moon, Sun, Tags, Users } from 'lucide-react';
 import { ReactNode, useEffect, useState } from 'react';
 import { api, Me } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
@@ -24,7 +24,9 @@ export function Shell({ children }: { children: ReactNode }) {
   const [me, setMe] = useState<Me | null>(null);
   useEffect(() => { if (!isLogin) api<Me>('/auth/me').then(setMe).catch(() => setMe(null)); }, [isLogin]);
   const logout = async () => { await supabase.auth.signOut(); window.location.href = '/login'; };
-  const items = me?.permissions.includes('users.read') ? [...NAV, { href: '/users', key: 'users', icon: Users } as const] : NAV;
+  const items = [...NAV,
+    ...(me?.permissions.includes('finance.read') ? [{ href: '/finance', key: 'finance', icon: Landmark } as const] : []),
+    ...(me?.permissions.includes('users.read') ? [{ href: '/users', key: 'users', icon: Users } as const] : [])];
   const links = items.map(({ href, key, icon: Icon }) => (
     <Link key={href} href={href} aria-current={path.startsWith(href) ? 'page' : undefined}><Icon size={18} />{t(key)}</Link>
   ));

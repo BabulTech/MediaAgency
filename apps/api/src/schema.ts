@@ -147,3 +147,49 @@ export const executionProofs = pgTable('execution_proofs', {
   status: text('status').notNull().default('uploaded'), comment: text('comment'), uploadedBy: uuid('uploaded_by').references(() => users.id), verifiedBy: uuid('verified_by').references(() => users.id),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const customerInvoices = pgTable('customer_invoices', {
+  id: id(), tenantId: tenantId(), number: text('number').notNull(), customerId: uuid('customer_id').notNull().references(() => customers.id),
+  invoiceDate: date('invoice_date').notNull(), dueDate: date('due_date').notNull(), subtotal: money('subtotal').notNull(),
+  taxPercent: numeric('tax_percent', { precision: 5, scale: 2 }).notNull().default('0'), tax: money('tax').notNull(), total: money('total').notNull(),
+  createdBy: uuid('created_by').references(() => users.id), createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [unique().on(t.tenantId, t.number)]);
+
+export const customerInvoiceLines = pgTable('customer_invoice_lines', {
+  id: id(), tenantId: tenantId(), invoiceId: uuid('invoice_id').notNull().references(() => customerInvoices.id),
+  placementId: uuid('placement_id').notNull().references(() => placements.id).unique(), description: text('description').notNull(), amount: money('amount').notNull(),
+});
+
+export const customerCreditNotes = pgTable('customer_credit_notes', {
+  id: id(), tenantId: tenantId(), number: text('number').notNull(), invoiceId: uuid('invoice_id').notNull().references(() => customerInvoices.id),
+  amount: money('amount').notNull(), reason: text('reason').notNull(), createdBy: uuid('created_by').references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [unique().on(t.tenantId, t.number)]);
+
+export const customerPayments = pgTable('customer_payments', {
+  id: id(), tenantId: tenantId(), number: text('number').notNull(), customerId: uuid('customer_id').notNull().references(() => customers.id),
+  amount: money('amount').notNull(), date: date('date').notNull(), method: text('method'), reference: text('reference'), idempotencyKey: text('idempotency_key').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [unique().on(t.tenantId, t.number), unique().on(t.tenantId, t.idempotencyKey)]);
+
+export const customerPaymentAllocations = pgTable('customer_payment_allocations', {
+  id: id(), tenantId: tenantId(), paymentId: uuid('payment_id').notNull().references(() => customerPayments.id),
+  invoiceId: uuid('invoice_id').notNull().references(() => customerInvoices.id), amount: money('amount').notNull(),
+});
+
+export const supplierBills = pgTable('supplier_bills', {
+  id: id(), tenantId: tenantId(), supplierReference: text('supplier_reference').notNull(), billDate: date('bill_date').notNull(), dueDate: date('due_date').notNull(),
+  amount: money('amount').notNull(), tax: money('tax').notNull().default('0'), total: money('total').notNull(),
+  createdBy: uuid('created_by').references(() => users.id), createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const supplierBillLines = pgTable('supplier_bill_lines', {
+  id: id(), tenantId: tenantId(), billId: uuid('bill_id').notNull().references(() => supplierBills.id),
+  bookingId: uuid('booking_id').notNull().references(() => supplierBookings.id).unique(),
+});
+
+export const supplierPayments = pgTable('supplier_payments', {
+  id: id(), tenantId: tenantId(), billId: uuid('bill_id').notNull().references(() => supplierBills.id), amount: money('amount').notNull(),
+  date: date('date').notNull(), reference: text('reference'), idempotencyKey: text('idempotency_key').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [unique().on(t.tenantId, t.idempotencyKey)]);
