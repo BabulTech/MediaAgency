@@ -70,3 +70,14 @@ describe('selectRule', () => {
     expect(() => selectRule([rule({ id: 'a' }), rule({ id: 'b' })], req)).toThrow(/conflict/);
   });
 });
+
+describe('digital units', () => {
+  it('prices CPM per thousand, CPC and CPV', () => {
+    expect(priceLine({ unit: 'per_cpm', rate: 200, quantity: { impressions: 150000 } }).total).toBe('30000.00');
+    expect(priceLine({ unit: 'per_cpc', rate: 15, quantity: { clicks: 100 } }).total).toBe('1500.00');
+    expect(priceLine({ unit: 'per_cpv', rate: 2, quantity: { views: 500 } }).total).toBe('1000.00');
+  });
+  it('adds outdoor installation to a monthly rental', () => {
+    expect(priceLine({ unit: 'per_month', rate: 100000, premiumFixed: 25000, quantity: { periods: 3 } }).total).toBe('325000.00');
+  });
+});

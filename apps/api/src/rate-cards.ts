@@ -5,7 +5,7 @@ import { Perm } from './auth';
 import { DB, Db } from './db';
 import * as s from './schema';
 
-const UNITS = ['per_sq_cm', 'per_sq_inch', 'per_column_cm', 'per_word', 'per_line', 'fixed', 'per_second', 'per_minute', 'per_spot', 'per_ticker', 'per_ticker_second', 'per_day', 'per_week', 'per_month'] as const;
+const UNITS = ['per_sq_cm', 'per_sq_inch', 'per_column_cm', 'per_word', 'per_line', 'fixed', 'per_second', 'per_minute', 'per_spot', 'per_ticker', 'per_ticker_second', 'per_day', 'per_week', 'per_month', 'per_cpm', 'per_cpc', 'per_cpv'] as const;
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const amount = z.string().regex(/^\d+(\.\d{1,4})?$/);
 // Forms and CSV files send blank cells as empty strings.

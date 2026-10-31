@@ -21,7 +21,7 @@ const num = z.number().nonnegative().optional();
 const quotationDto = z.object({ customerId: z.string().uuid(), campaignId: z.string().uuid().nullish(), validUntil: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) });
 const lineDto = z.object({
   outletId: z.string().uuid(), formatCode: z.string().trim().min(1), date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), timeBandCode: z.string().optional(),
-  quantity: z.object({ widthCm: num, heightCm: num, columns: num, words: num, lines: num, insertions: num, durationSeconds: num, spots: num, periods: num }),
+  quantity: z.object({ widthCm: num, heightCm: num, columns: num, words: num, lines: num, insertions: num, durationSeconds: num, spots: num, periods: num, impressions: num, clicks: num, views: num }),
   premiumFixed: num, discountPercent: z.number().min(0).max(100).optional(),
 });
 

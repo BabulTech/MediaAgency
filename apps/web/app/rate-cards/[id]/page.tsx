@@ -9,7 +9,7 @@ import { ExportBar } from '@/components/ExportBar';
 import { useI18n } from '@/lib/i18n';
 import { DictKey } from '@/lib/dict';
 
-const UNITS = ['per_sq_cm', 'per_sq_inch', 'per_column_cm', 'per_word', 'per_line', 'fixed', 'per_second', 'per_minute', 'per_spot', 'per_ticker', 'per_ticker_second', 'per_day', 'per_week', 'per_month'] as const;
+const UNITS = ['per_sq_cm', 'per_sq_inch', 'per_column_cm', 'per_word', 'per_line', 'fixed', 'per_second', 'per_minute', 'per_spot', 'per_ticker', 'per_ticker_second', 'per_day', 'per_week', 'per_month', 'per_cpm', 'per_cpc', 'per_cpv'] as const;
 type Unit = (typeof UNITS)[number];
 type Detail = { card: RateCard & { version: number }; rules: (RuleRow & { id: string })[]; history: { id: string; action: string; createdAt: string }[] };
 

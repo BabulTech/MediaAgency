@@ -33,7 +33,7 @@
 | 6 Reporting | Mostly done: all 30 reports, bar charts, Excel, CSV and PDF export, Excel and CSV import with preview. No report builder, scheduled reports, role dashboards, email or jobs |
 | 7 Portals | Partial: customer view with quotation accept and reject; supplier booking responses. No uploads, requests, bills or PDF downloads in portals |
 
-Rule 9.3 note: rule stacking, rule-level premiums and tax rules are not in the engine yet. Radio, digital and outdoor calculators are also outstanding.
+Rule 9.3 note: rule stacking, rule-level premiums and tax rules are not in the engine yet. Radio, digital, social and outdoor share one calculator and the normal quotation flow; they have no ad previews or spend tracking.
 
 Documents are print pages saved as PDF from the browser, which keeps Urdu shaping correct.
 

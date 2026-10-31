@@ -505,3 +505,17 @@ describe('report catalogue and imports', () => {
     expect((await post('/v1/import/customers', { rows: [{ name: 'N' }] }, 'ro@example.com')).status).toBe(403);
   });
 });
+
+describe('other media', () => {
+  it('quotes a CPM digital placement end to end', async () => {
+    const cats = await (await fetch(`${url}/v1/categories`, { headers: headers(token) })).json();
+    const o = await outlet('SAMPLE-TV');
+    const digital = cats.find((c: any) => c.code === 'digital');
+    const site = await (await post('/v1/outlets', { organizationId: o.organizationId, categoryId: digital.id, code: 'WEB-1', name: 'Sample Site' })).json();
+    const card = await (await post('/v1/rate-cards', { outletId: site.id, name: 'Web', kind: 'selling', effectiveFrom: '2026-01-01' })).json();
+    await post(`/v1/rate-cards/${card.id}/rules`, { formatCode: 'website_banner', unit: 'per_cpm', rate: '200' });
+    await post(`/v1/rate-cards/${card.id}/publish`, {});
+    const res = await post('/v1/pricing/calculate', { outletId: site.id, formatCode: 'website_banner', date: '2026-11-02', quantity: { impressions: 150000 } });
+    expect((await res.json()).breakdown.total).toBe('30000.00');
+  });
+});

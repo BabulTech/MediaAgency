@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Card, Field, NumberField, Result, Select, SliderField, Status, useLoad } from '@/components/ui';
 import { api, Category, Outlet } from '@/lib/api';
 import { DictKey } from '@/lib/dict';
-import { PAPER_FORMATS, TIME_BANDS, TV_FORMATS } from '@/lib/media';
+import { OTHER_FORMATS, OtherKind, PAPER_FORMATS, TIME_BANDS, TV_FORMATS } from '@/lib/media';
 import { useI18n } from '@/lib/i18n';
 
 type Line = { id: string; formatCode: string; date: string; net: string; supplierCost: string | null; outletId: string };
@@ -16,7 +16,7 @@ export default function QuotationPage() {
   const router = useRouter();
   const [version, setVersion] = useState(0);
   const [message, setMessage] = useState('');
-  const [line, setLine] = useState({ outletId: '', formatCode: '', date: '', timeBandCode: '', widthCm: 9, heightCm: 15, insertions: 1, durationSeconds: 30, spots: 1, words: 0, lines: 0, discountPercent: 0 });
+  const [line, setLine] = useState({ outletId: '', formatCode: '', date: '', timeBandCode: '', widthCm: 9, heightCm: 15, insertions: 1, durationSeconds: 30, spots: 1, periods: 1, impressions: 0, clicks: 0, views: 0, premiumFixed: 0, discountPercent: 0 });
   const { data, error } = useLoad(async () => {
     const [detail, outlets, categories] = await Promise.all([api<Detail>(`/quotations/${id}`), api<Outlet[]>('/outlets'), api<Category[]>('/categories')]);
     return { detail, outlets, categories };
@@ -39,18 +39,20 @@ export default function QuotationPage() {
   const { quotation: q, lines } = data.detail;
   const outletId = line.outletId || data.outlets[0]?.id || '';
   const outlet = data.outlets.find((o) => o.id === outletId);
-  const isTv = data.categories.find((c) => c.id === outlet?.categoryId)?.code === 'tv';
-  const formatCode = line.formatCode || (isTv ? 'tvc' : 'display');
+  const kind = data.categories.find((c) => c.id === outlet?.categoryId)?.code ?? 'newspaper';
+  const formats: readonly string[] = kind === 'tv' ? TV_FORMATS : OTHER_FORMATS[kind as OtherKind] ?? PAPER_FORMATS;
+  const formatCode = line.formatCode || formats[0];
+  const broadcast = kind === 'tv' || kind === 'radio';
   const outletName = (oid: string) => data.outlets.find((o) => o.id === oid)?.name ?? '';
   const n = (k: keyof typeof line) => line[k] as number;
   const setN = (k: keyof typeof line) => (v: number) => setLine({ ...line, [k]: v });
 
   async function add(e: FormEvent) {
     e.preventDefault();
-    const { widthCm, heightCm, insertions, durationSeconds, spots, discountPercent, date, timeBandCode } = line;
+    const { widthCm, heightCm, insertions, durationSeconds, spots, periods, impressions, clicks, views, premiumFixed, discountPercent, date, timeBandCode } = line;
     await call(`/quotations/${id}/lines`, { method: 'POST', body: JSON.stringify({
-      outletId, formatCode, date, timeBandCode: timeBandCode || undefined, discountPercent,
-      quantity: isTv ? { durationSeconds, spots } : { widthCm, heightCm, insertions },
+      outletId, formatCode, date, timeBandCode: timeBandCode || undefined, discountPercent, premiumFixed: kind === 'outdoor' ? premiumFixed : 0,
+      quantity: broadcast ? { durationSeconds, spots } : kind === 'newspaper' ? { widthCm, heightCm, insertions } : kind === 'outdoor' ? { periods } : { impressions, clicks, views },
     }) });
   }
 
@@ -74,16 +76,26 @@ export default function QuotationPage() {
         <Card title={t('addPlacement')}>
           <form className="grid2" onSubmit={add}>
             <Select label={t('outlets')} value={outletId} onChange={(v) => setLine({ ...line, outletId: v, formatCode: '', timeBandCode: '' })} options={data.outlets.map((o) => ({ value: o.id, label: o.name }))} />
-            <Select label={t('format')} value={formatCode} onChange={(v) => setLine({ ...line, formatCode: v })} options={(isTv ? TV_FORMATS : PAPER_FORMATS).map((f) => ({ value: f, label: t(f) }))} />
+            <Select label={t('format')} value={formatCode} onChange={(v) => setLine({ ...line, formatCode: v })} options={formats.map((f) => ({ value: f, label: t(f as DictKey) }))} />
             <Field label={t('publishDate')}><input className="input" type="date" dir="ltr" required value={line.date} onChange={(e) => setLine({ ...line, date: e.target.value })} /></Field>
-            {isTv ? <>
+            {broadcast && <>
               <Select label={t('timeBand')} value={line.timeBandCode} onChange={(v) => setLine({ ...line, timeBandCode: v })} options={[{ value: '', label: '—' }, ...TIME_BANDS.map((b) => ({ value: b, label: t(b) }))]} />
               <NumberField label={t('duration')} value={n('durationSeconds')} onChange={setN('durationSeconds')} />
               <NumberField label={t('spots')} value={n('spots')} onChange={setN('spots')} />
-            </> : <>
+            </>}
+            {kind === 'newspaper' && <>
               <NumberField label={t('width')} value={n('widthCm')} onChange={setN('widthCm')} />
               <NumberField label={t('height')} value={n('heightCm')} onChange={setN('heightCm')} />
               <NumberField label={t('insertions')} value={n('insertions')} onChange={setN('insertions')} />
+            </>}
+            {(kind === 'digital' || kind === 'social') && <>
+              <NumberField label={t('impressions')} value={n('impressions')} onChange={setN('impressions')} />
+              <NumberField label={t('clicks')} value={n('clicks')} onChange={setN('clicks')} />
+              <NumberField label={t('views')} value={n('views')} onChange={setN('views')} />
+            </>}
+            {kind === 'outdoor' && <>
+              <NumberField label={t('periods')} value={n('periods')} onChange={setN('periods')} />
+              <NumberField label={t('installation')} value={n('premiumFixed')} onChange={setN('premiumFixed')} />
             </>}
             <SliderField label={t('discount')} unit="%" value={n('discountPercent')} min={0} max={30} onChange={setN('discountPercent')} />
             <div className="span2"><button className="btn primary">{t('addPlacement')}</button></div>

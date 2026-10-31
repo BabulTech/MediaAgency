@@ -79,7 +79,7 @@ export class OperationsController {
       .where(and(eq(s.supplierBookings.id, uuid(id)), eq(s.supplierBookings.tenantId, req.user.tenantId)));
     if (!r) throw new NotFoundException({ code: 'NOT_FOUND' });
     const q = (r.p.request as { quantity?: Record<string, number>; timeBandCode?: string }) ?? {};
-    const LABELS: Record<string, string> = { widthCm: 'Width (cm)', heightCm: 'Height (cm)', columns: 'Columns', words: 'Words', lines: 'Lines', insertions: 'Insertions', durationSeconds: 'Duration (seconds)', spots: 'Spots', periods: 'Periods' };
+    const LABELS: Record<string, string> = { widthCm: 'Width (cm)', heightCm: 'Height (cm)', columns: 'Columns', words: 'Words', lines: 'Lines', insertions: 'Insertions', durationSeconds: 'Duration (seconds)', spots: 'Spots', periods: 'Periods', impressions: 'Impressions', clicks: 'Clicks', views: 'Views' };
     const spec = Object.entries(q.quantity ?? {}).filter(([, v]) => v).map(([k, v]) => `${LABELS[k] ?? k}: ${v}`).join(', ');
     return { agency: r.tenant.name, company: { address: r.tenant.address, phone: r.tenant.phone, email: r.tenant.email, ntn: r.tenant.ntn, bankDetails: r.tenant.bankDetails }, number: r.b.number, date: r.b.createdAt.toISOString().slice(0, 10), dueDate: r.b.requestedDate, party: r.outletName, status: r.b.status,
       total: r.b.purchasePrice ?? undefined, lines: [{ description: [r.p.formatCode, q.timeBandCode, spec].filter(Boolean).join(' · ') }] };

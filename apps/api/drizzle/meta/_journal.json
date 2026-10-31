@@ -127,6 +127,13 @@
       "when": 1793459446800,
       "tag": "0017_fat_genesis",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793463429301,
+      "tag": "0018_more_media",
+      "breakpoints": true
     }
   ]
 }

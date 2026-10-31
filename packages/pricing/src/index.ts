@@ -3,11 +3,12 @@ import Decimal from 'decimal.js';
 export type PricingUnit =
   | 'per_sq_cm' | 'per_sq_inch' | 'per_column_cm' | 'per_word' | 'per_line' | 'fixed'
   | 'per_second' | 'per_minute' | 'per_spot' | 'per_ticker' | 'per_ticker_second'
-  | 'per_day' | 'per_week' | 'per_month';
+  | 'per_day' | 'per_week' | 'per_month' | 'per_cpm' | 'per_cpc' | 'per_cpv';
 
 export interface Quantity {
   widthCm?: number; heightCm?: number; columns?: number; words?: number; lines?: number;
   insertions?: number; durationSeconds?: number; spots?: number; periods?: number;
+  impressions?: number; clicks?: number; views?: number;
 }
 
 export interface PriceInput {
@@ -64,6 +65,9 @@ export function billableUnits(unit: PricingUnit, q: Quantity): Decimal {
     case 'per_day':
     case 'per_week':
     case 'per_month': return n('periods', 1);
+    case 'per_cpm': return n('impressions').div(1000);
+    case 'per_cpc': return n('clicks');
+    case 'per_cpv': return n('views');
   }
 }
 

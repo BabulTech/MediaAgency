@@ -36,6 +36,8 @@ async function seed(db: Db) {
   const tenantId = tenant.id;
   const cats = await db.insert(s.mediaCategories).values([
     { tenantId, code: 'newspaper', name: 'Newspapers' }, { tenantId, code: 'tv', name: 'Television Channels' },
+    { tenantId, code: 'radio', name: 'Radio Stations' }, { tenantId, code: 'digital', name: 'Digital News Websites' },
+    { tenantId, code: 'social', name: 'Social Media Advertising' }, { tenantId, code: 'outdoor', name: 'Outdoor Advertising' },
   ]).returning();
   const [org] = await db.insert(s.mediaOrganizations).values({ tenantId, code: 'SAMPLE', name: 'Sample Media Group' }).returning();
   const cat = (code: string) => cats.find((c) => c.code === code)!.id;
