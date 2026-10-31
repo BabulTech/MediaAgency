@@ -1,5 +1,5 @@
 import { UnprocessableEntityException } from '@nestjs/common';
-import { PricingError, PricingUnit, Quantity, RateRule, priceLine, selectRule } from '@mamp/pricing';
+import { PricingError, PricingUnit, Quantity, RateRule, priceLine, selectRule } from './pricing-engine';
 import { Db, rulesForOutlet } from './db';
 
 export const toRule = ({ rule, card }: Awaited<ReturnType<typeof rulesForOutlet>>[number]): RateRule => ({

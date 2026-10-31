@@ -1,5 +1,5 @@
 import { BadRequestException, Body, ConflictException, Controller, Delete, Get, Inject, NotFoundException, Param, Post, Req } from '@nestjs/common';
-import { sumMoney } from '@mamp/pricing';
+import { sumMoney } from './pricing-engine';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import { Perm } from './auth';

@@ -1,4 +1,4 @@
-import { sumMoney } from '@mamp/pricing';
+import { sumMoney } from './pricing-engine';
 import { and, desc, eq, gte, lte } from 'drizzle-orm';
 import { Db } from './db';
 import * as s from './schema';
