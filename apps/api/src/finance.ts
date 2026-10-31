@@ -31,7 +31,7 @@ const bucket = (due: string) => {
 };
 type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 
-@Controller('v1/finance')
+@Controller('v1')
 export class FinanceController {
   constructor(@Inject(DB) private db: Db) {}
 
@@ -69,11 +69,26 @@ export class FinanceController {
     return bills.map((bill) => ({ bill, balance: sumMoney([bill.total, ...paid.filter((p) => p.billId === bill.id).map((p) => `-${p.amount}`)]) }));
   }
 
-  @Perm('finance.read') @Get('invoices') invoices(@Req() req: any) { return this.invoicesWithBalance(req.user.tenantId); }
-  @Perm('finance.read') @Get('bills') bills(@Req() req: any) { return this.billsWithBalance(req.user.tenantId); }
+  @Perm('portal.customer') @Get('portal/customer/invoices/:id/document')
+  myDocument(@Req() req: any, @Param('id') id: string) { return this.invoiceDocument(req.user.tenantId, id, req.user.customerId); }
+
+  private async invoiceDocument(tenantId: string, id: string, customerId?: string) {
+    const [r] = await this.db.select({ i: s.customerInvoices, party: s.customers.name, agency: s.tenants.name }).from(s.customerInvoices)
+      .innerJoin(s.customers, eq(s.customerInvoices.customerId, s.customers.id)).innerJoin(s.tenants, eq(s.customerInvoices.tenantId, s.tenants.id))
+      .where(and(eq(s.customerInvoices.id, uuid(id)), eq(s.customerInvoices.tenantId, tenantId), customerId ? eq(s.customerInvoices.customerId, customerId) : undefined));
+    if (!r) throw new NotFoundException({ code: 'NOT_FOUND' });
+    const lines = await this.db.select().from(s.customerInvoiceLines).where(eq(s.customerInvoiceLines.invoiceId, r.i.id));
+    const balance = (await this.invoicesWithBalance(tenantId)).find((x) => x.invoice.id === r.i.id)!.balance;
+    return { agency: r.agency, number: r.i.number, date: r.i.invoiceDate, dueDate: r.i.dueDate, party: r.party, subtotal: r.i.subtotal, tax: r.i.tax, total: r.i.total,
+      paid: sumMoney([r.i.total, `-${balance}`]), balance, lines: lines.map((l) => ({ description: l.description, amount: l.amount })) };
+  }
+  @Perm('finance.read') @Get('finance/invoices/:id/document') document(@Req() req: any, @Param('id') id: string) { return this.invoiceDocument(req.user.tenantId, id); }
+
+  @Perm('finance.read') @Get('finance/invoices') invoices(@Req() req: any) { return this.invoicesWithBalance(req.user.tenantId); }
+  @Perm('finance.read') @Get('finance/bills') bills(@Req() req: any) { return this.billsWithBalance(req.user.tenantId); }
 
   /** Default: a placement can be invoiced once it has run. Each can only ever sit on one invoice line. */
-  @Perm('finance.read') @Get('eligible-placements')
+  @Perm('finance.read') @Get('finance/eligible-placements')
   eligible(@Req() req: any, @Query('customerId') customerId: string) {
     return this.db.select({ placement: s.placements, orderNumber: s.orders.number }).from(s.placements)
       .innerJoin(s.orders, eq(s.placements.orderId, s.orders.id))
@@ -82,14 +97,14 @@ export class FinanceController {
         inArray(s.placements.status, ['executed', 'verified']), isNull(s.customerInvoiceLines.id)));
   }
 
-  @Perm('finance.read') @Get('billable-bookings')
+  @Perm('finance.read') @Get('finance/billable-bookings')
   billable(@Req() req: any) {
     return this.db.select({ booking: s.supplierBookings }).from(s.supplierBookings)
       .leftJoin(s.supplierBillLines, eq(s.supplierBillLines.bookingId, s.supplierBookings.id))
       .where(and(eq(s.supplierBookings.tenantId, req.user.tenantId), inArray(s.supplierBookings.status, ['confirmed', 'executed']), isNull(s.supplierBillLines.id)));
   }
 
-  @Perm('finance.write') @Post('invoices')
+  @Perm('finance.write') @Post('finance/invoices')
   async createInvoice(@Req() req: any, @Body() body: unknown) {
     const dto = parse(invoiceDto, body);
     const tenantId: string = req.user.tenantId;
@@ -112,7 +127,7 @@ export class FinanceController {
     });
   }
 
-  @Perm('finance.approve') @Post('invoices/:id/credit-notes')
+  @Perm('finance.approve') @Post('finance/invoices/:id/credit-notes')
   async credit(@Req() req: any, @Param('id') id: string, @Body() body: unknown) {
     const dto = parse(creditDto, body);
     return this.db.transaction(async (tx) => {
@@ -126,7 +141,7 @@ export class FinanceController {
   }
 
   /** Anything not allocated stays on the payment as an advance. A repeated key returns the first result. */
-  @Perm('finance.write') @Post('payments')
+  @Perm('finance.write') @Post('finance/payments')
   async payment(@Req() req: any, @Body() body: unknown) {
     const dto = parse(paymentDto, body);
     const tenantId: string = req.user.tenantId;
@@ -151,7 +166,7 @@ export class FinanceController {
     });
   }
 
-  @Perm('finance.write') @Post('bills')
+  @Perm('finance.write') @Post('finance/bills')
   async createBill(@Req() req: any, @Body() body: unknown) {
     const dto = parse(billDto, body);
     const tenantId: string = req.user.tenantId;
@@ -167,7 +182,7 @@ export class FinanceController {
     });
   }
 
-  @Perm('finance.write') @Post('bills/:id/payments')
+  @Perm('finance.write') @Post('finance/bills/:id/payments')
   async payBill(@Req() req: any, @Param('id') id: string, @Body() body: unknown) {
     const dto = parse(billPaymentDto, body);
     const tenantId: string = req.user.tenantId;
@@ -186,7 +201,7 @@ export class FinanceController {
   }
 
   /** Balances only. Collections are not revenue and supplier payments are not expense recognition. */
-  @Perm('finance.read') @Get('summary')
+  @Perm('finance.read') @Get('finance/summary')
   async summary(@Req() req: any) {
     const tenantId: string = req.user.tenantId;
     const [invoices, bills, payments, allocs] = await Promise.all([
@@ -203,7 +218,7 @@ export class FinanceController {
   }
 
   /** Quoted uses the priced supplier cost, committed the booking, actual the supplier bill. */
-  @Perm('finance.read') @Get('profitability')
+  @Perm('finance.read') @Get('finance/profitability')
   async profitability(@Req() req: any) {
     const tenantId: string = req.user.tenantId;
     const placements = await this.db.select({ p: s.placements, outletName: s.mediaOutlets.name, orderNumber: s.orders.number }).from(s.placements)

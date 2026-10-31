@@ -59,7 +59,7 @@ export default function PortalPage() {
         </Card>
         <Card title={t('invoices')}>
           {customer.invoices.length === 0 && <p className="muted">{t('noRecords')}</p>}
-          {customer.invoices.map((i) => <Row key={i.id} label={`${i.number} · ${i.dueDate}`} value={`${pkr(i.balance)} / ${pkr(i.total)}`} />)}
+          {customer.invoices.map((i) => <div key={i.id}><Row label={`${i.number} · ${i.dueDate}`} value={`${pkr(i.balance)} / ${pkr(i.total)}`} /><a className="btn" target="_blank" href={`/print/my-invoice/${i.id}`}>{t('printPdf')}</a></div>)}
         </Card>
       </>}
       {supplier && (

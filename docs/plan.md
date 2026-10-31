@@ -35,6 +35,8 @@
 
 Rule 9.3 note: rule stacking, rule-level premiums and tax rules are not in the engine yet. Radio, digital and outdoor calculators are also outstanding.
 
+Documents are print pages saved as PDF from the browser, which keeps Urdu shaping correct.
+
 Deliverables not yet produced: full SRS, ERD, permission matrix, Swagger, Docker config, admin and user guides.
 
 Supabase: database, Auth login and password recovery are live. Storage arrives with creative management.

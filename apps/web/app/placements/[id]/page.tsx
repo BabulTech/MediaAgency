@@ -67,6 +67,7 @@ export default function PlacementPage() {
       <Card title={t('bookings')}>
         {bookings.map((b) => (
           <div key={b.id}>
+            <a className="btn" target="_blank" href={`/print/booking/${b.id}`}>{t('printPdf')}</a>
             <div className="row"><b>{b.number}</b><small className="muted">{b.status}{b.supplierReference ? ` · ${b.supplierReference}` : ''}</small></div>
             {NEXT[b.status] && (
               <div className="stack">

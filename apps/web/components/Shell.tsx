@@ -30,7 +30,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const portal = isPortalOnly(me);
   useEffect(() => { if (!isLogin) api<Me>('/auth/me').then(setMe).catch(() => setMe(null)); }, [isLogin]);
   useEffect(() => { setMore(false); }, [path]);
-  useEffect(() => { if (portal && path !== '/portal') window.location.href = '/portal'; }, [portal, path]);
+  useEffect(() => { if (portal && path !== '/portal' && !path.startsWith('/print')) window.location.href = '/portal'; }, [portal, path]);
   useEffect(() => { if (!isLogin && me && !portal) api<unknown[]>('/alerts').then((a) => setAlerts(a.length)).catch(() => setAlerts(0)); }, [isLogin, path, me, portal]);
   const logout = async () => { await supabase.auth.signOut(); window.location.href = '/login'; };
   const items = portal ? [{ href: '/portal', key: 'portal', icon: Users } as const] : [...NAV,
@@ -39,7 +39,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const links = items.map(({ href, key, icon: Icon }) => (
     <Link key={href} href={href} aria-current={path.startsWith(href) ? 'page' : undefined}><Icon size={18} />{t(key)}</Link>
   ));
-  if (isLogin) return <>{children}</>;
+  if (isLogin || path.startsWith('/print')) return <>{children}</>;
   return (
     <div className="shell">
       <aside className="sidebar"><b className="brand">{t('appName')}</b><nav>{links}</nav></aside>

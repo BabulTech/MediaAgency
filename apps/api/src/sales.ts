@@ -64,6 +64,19 @@ export class SalesController {
     return { quotation, lines: await this.lines(quotation.id) };
   }
 
+  /** Customer-facing: never includes supplier cost. */
+  @Perm('sales.read') @Get('quotations/:id/document')
+  async quotationDocument(@Req() req: any, @Param('id') id: string) {
+    const q = await this.quotation(req.user.tenantId, id);
+    const [[tenant], [customer], rows] = await Promise.all([
+      this.db.select().from(s.tenants).where(eq(s.tenants.id, q.tenantId)),
+      this.db.select().from(s.customers).where(eq(s.customers.id, q.customerId)),
+      this.db.select({ l: s.quotationLines, outletName: s.mediaOutlets.name }).from(s.quotationLines).innerJoin(s.mediaOutlets, eq(s.quotationLines.outletId, s.mediaOutlets.id)).where(eq(s.quotationLines.quotationId, q.id)),
+    ]);
+    return { agency: tenant.name, number: q.number, date: q.createdAt.toISOString().slice(0, 10), dueDate: q.validUntil, party: customer.name, status: q.status, total: q.total,
+      lines: rows.map((r) => ({ description: `${r.outletName} · ${r.l.formatCode} · ${r.l.date}`, amount: r.l.net })) };
+  }
+
   @Perm('sales.write') @Post('quotations')
   async create(@Req() req: any, @Body() body: unknown) {
     const dto = parse(quotationDto, body);

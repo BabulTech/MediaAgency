@@ -53,6 +53,7 @@ export default function QuotationPage() {
     <div className="stack">
       <h1>{q.number}</h1>
       <p className="muted">{q.status}</p>
+      <a className="btn" target="_blank" href={`/print/quotation/${id}`}>{t('printPdf')}</a>
       {message && <p className="error">{message}</p>}
       <Card title={t('placements')}>
         {lines.length === 0 && <p className="muted">{t('noRecords')}</p>}

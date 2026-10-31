@@ -1,0 +1,43 @@
+'use client';
+import { useParams } from 'next/navigation';
+import { useLoad } from '@/components/ui';
+import { api } from '@/lib/api';
+import { useI18n } from '@/lib/i18n';
+
+type Doc = {
+  agency: string; number: string; date: string; dueDate?: string; party: string; status?: string;
+  lines: { description: string; amount?: string }[];
+  subtotal?: string; tax?: string; total?: string; paid?: string; balance?: string; note?: string;
+};
+const ROUTES: Record<string, (id: string) => string> = {
+  quotation: (id) => `/quotations/${id}/document`,
+  invoice: (id) => `/finance/invoices/${id}/document`,
+  'my-invoice': (id) => `/portal/customer/invoices/${id}/document`,
+  booking: (id) => `/bookings/${id}/document`,
+};
+const TITLES = { quotation: 'quotationDoc', invoice: 'invoiceDoc', 'my-invoice': 'invoiceDoc', booking: 'bookingDoc' } as const;
+
+export default function PrintPage() {
+  const { type, id } = useParams<{ type: keyof typeof TITLES; id: string }>();
+  const { t, pkr } = useI18n();
+  const { data, error } = useLoad<Doc | null>(() => api<Doc>(ROUTES[type](id)), null);
+  if (error) return <p className="error">{t('accessDenied')}</p>;
+  if (!data) return null;
+  return (
+    <main className="doc">
+      <button type="button" className="btn primary no-print" onClick={() => window.print()}>{t('printPdf')}</button>
+      <header><div><h1>{data.agency}</h1><p>{t(TITLES[type])}</p></div><div><b>{data.number}</b><p>{data.date}</p>{data.dueDate && <p>{t('dueDate')}: {data.dueDate}</p>}</div></header>
+      <p><b>{data.party}</b></p>
+      <table className="table doc-table">
+        <tbody>{data.lines.map((l, i) => <tr key={i}><td style={{ whiteSpace: 'normal' }}>{l.description}</td>{l.amount !== undefined && <td>{pkr(l.amount)}</td>}</tr>)}</tbody>
+      </table>
+      <div className="doc-totals">
+        {data.subtotal && data.tax && <p>{t('taxPercent')}: {pkr(data.tax)}</p>}
+        {data.total && <p><b>{pkr(data.total)}</b></p>}
+        {data.paid && <p>{t('paidAmount')}: {pkr(data.paid)}</p>}
+        {data.balance && <p><b>{t('balanceDue')}: {pkr(data.balance)}</b></p>}
+      </div>
+      {data.note && <p className="muted">{data.note}</p>}
+    </main>
+  );
+}

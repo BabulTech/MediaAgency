@@ -70,6 +70,20 @@ export class OperationsController {
       .where(eq(s.supplierBookings.tenantId, req.user.tenantId)).orderBy(desc(s.supplierBookings.createdAt)).limit(200);
   }
 
+  /** Sent to the supplier: full specification, purchase price, and no selling price. */
+  @Perm('ops.read') @Get('bookings/:id/document')
+  async bookingDocument(@Req() req: any, @Param('id') id: string) {
+    const [r] = await this.db.select({ b: s.supplierBookings, p: s.placements, outletName: s.mediaOutlets.name, agency: s.tenants.name }).from(s.supplierBookings)
+      .innerJoin(s.placements, eq(s.supplierBookings.placementId, s.placements.id)).innerJoin(s.mediaOutlets, eq(s.supplierBookings.outletId, s.mediaOutlets.id))
+      .innerJoin(s.tenants, eq(s.supplierBookings.tenantId, s.tenants.id))
+      .where(and(eq(s.supplierBookings.id, uuid(id)), eq(s.supplierBookings.tenantId, req.user.tenantId)));
+    if (!r) throw new NotFoundException({ code: 'NOT_FOUND' });
+    const q = (r.p.request as { quantity?: Record<string, number>; timeBandCode?: string }) ?? {};
+    const spec = Object.entries(q.quantity ?? {}).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join(', ');
+    return { agency: r.agency, number: r.b.number, date: r.b.createdAt.toISOString().slice(0, 10), dueDate: r.b.requestedDate, party: r.outletName, status: r.b.status,
+      total: r.b.purchasePrice ?? undefined, lines: [{ description: [r.p.formatCode, q.timeBandCode, spec].filter(Boolean).join(' · ') }] };
+  }
+
   @Perm('ops.read') @Get('placements/:id')
   async getPlacement(@Req() req: any, @Param('id') id: string) {
     const placement = await this.placement(req.user.tenantId, id);

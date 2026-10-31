@@ -446,3 +446,27 @@ describe('portals', () => {
     expect((await post(url2, { status: 'confirmed' }, 's@portal.test')).status).toBe(201);
   });
 });
+
+describe('documents', () => {
+  const get = (p: string, t = token) => fetch(url + p, { headers: headers(t) });
+  it('hides each side\'s price and respects ownership', async () => {
+    const cust = await (await post('/v1/customers', { name: 'Doc Co' })).json();
+    const q = await (await post('/v1/quotations', { customerId: cust.id, validUntil: '2026-12-31' })).json();
+    const o = await outlet('SAMPLE-TV');
+    await post(`/v1/quotations/${q.id}/lines`, { outletId: o.id, formatCode: 'tvc', date: '2026-11-02', quantity: { durationSeconds: 10, spots: 1 } });
+    const quote = await (await get(`/v1/quotations/${q.id}/document`)).text();
+    expect(quote).toContain('15000'); expect(quote).not.toMatch(/12000|supplier/i);
+    for (const step of ['submit', 'send']) await post(`/v1/quotations/${q.id}/${step}`, {});
+    const order = await (await post(`/v1/quotations/${q.id}/accept`, {})).json();
+    const placementId = (await (await get(`/v1/orders/${order.id}`)).json()).placements[0].placement.id;
+    const b = await (await post(`/v1/placements/${placementId}/bookings`, {})).json();
+    const booking = await (await get(`/v1/bookings/${b.id}/document`)).json();
+    expect(booking.total).toBe('12000.0000'); expect(JSON.stringify(booking)).not.toContain('15000');
+    await post(`/v1/bookings/${b.id}/status`, { status: 'confirmed' });
+    await post(`/v1/bookings/${b.id}/status`, { status: 'executed' });
+    const inv = await (await post('/v1/finance/invoices', { customerId: cust.id, placementIds: [placementId], invoiceDate: '2026-11-03', dueDate: '2026-12-03' })).json();
+    expect((await (await get(`/v1/finance/invoices/${inv.id}/document`)).json()).balance).toBe('15000.00');
+    expect((await get(`/v1/portal/customer/invoices/${inv.id}/document`, 'cust@example.com')).status).toBe(404);
+    expect((await get(`/v1/finance/invoices/${inv.id}/document`, 'ro@example.com')).status).toBe(403);
+  });
+});

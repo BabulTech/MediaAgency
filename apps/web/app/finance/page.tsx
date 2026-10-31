@@ -64,6 +64,7 @@ export default function FinancePage() {
         {invoices.map(({ invoice: i, customerName, balance }) => (
           <div key={i.id}>
             <Row label={`${i.number} · ${customerName} · ${i.dueDate}`} value={`${pkr(balance)} / ${pkr(i.total)}`} />
+            <a className="btn" target="_blank" href={`/print/invoice/${i.id}`}>{t('printPdf')}</a>
             {Number(balance) > 0 && (
               <form className="artwork" onSubmit={(e: FormEvent) => {
                 e.preventDefault();
