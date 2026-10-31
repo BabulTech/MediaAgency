@@ -11,6 +11,8 @@ import { auditLogs, mediaOrganizations, mediaOutlets, pricingSnapshots, tenants,
 
 let app: INestApplication; let url: string; let db: Db;
 let token = 'admin@example.com';
+const mails: { to: string[]; subject: string }[] = [];
+let failMail = false;
 const headers = (t: string) => ({ 'content-type': 'application/json', authorization: `Bearer ${t}` });
 const post = (p: string, body: unknown, t = token) => fetch(url + p, { method: 'POST', headers: headers(t), body: JSON.stringify(body) });
 const accounts = new Map<string, string>(); // token -> Supabase id
@@ -23,7 +25,7 @@ const identity: IdentityProvider = {
 
 beforeAll(async () => {
   db = await openDb({ memory: true });
-  app = await NestFactory.create(AppModule.forDb(db, identity, { uploadUrl: async (p) => `https://files.test/${p}`, downloadUrl: async (p) => `https://files.test/${p}` }), { logger: false });
+  app = await NestFactory.create(AppModule.forDb(db, identity, { uploadUrl: async (p) => `https://files.test/${p}`, downloadUrl: async (p) => `https://files.test/${p}` }, { send: async (to, subject) => { if (failMail) throw new Error('down'); mails.push({ to, subject }); } }), { logger: false });
   await app.listen(0, '127.0.0.1');
   url = (await app.getUrl()).replace('[::1]', 'localhost');
   const adminId = await identity.create('admin@example.com', '');
@@ -517,5 +519,25 @@ describe('other media', () => {
     await post(`/v1/rate-cards/${card.id}/publish`, {});
     const res = await post('/v1/pricing/calculate', { outletId: site.id, formatCode: 'website_banner', date: '2026-11-02', quantity: { impressions: 150000 } });
     expect((await res.json()).breakdown.total).toBe('30000.00');
+  });
+});
+
+describe('email', () => {
+  const draft = async () => {
+    const cust = await (await post('/v1/customers', { name: 'Mail' })).json();
+    const q = await (await post('/v1/quotations', { customerId: cust.id, validUntil: '2026-12-31' })).json();
+    const o = await outlet('SAMPLE-TV');
+    await post(`/v1/quotations/${q.id}/lines`, { outletId: o.id, formatCode: 'tvc', date: '2026-11-02', discountPercent: 20, quantity: { durationSeconds: 10, spots: 1 } });
+    return q;
+  };
+  it('tells approvers, and a mail failure does not block submission', async () => {
+    const q = await draft();
+    await post(`/v1/quotations/${q.id}/submit`, {});
+    expect(mails.at(-1)).toMatchObject({ subject: `Approval needed: ${q.number}` });
+    expect(mails.at(-1)!.to).toContain('admin@example.com');
+    failMail = true;
+    const r = await draft();
+    expect((await post(`/v1/quotations/${r.id}/submit`, {})).status).toBe(201);
+    failMail = false;
   });
 });

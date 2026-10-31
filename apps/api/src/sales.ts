@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { Perm } from './auth';
 import { nextNumber } from './crm';
 import { DB, Db } from './db';
+import { MAILER, Mailer } from './mail';
 import { priceRequest } from './pricing';
 import * as s from './schema';
 
@@ -27,7 +28,7 @@ const lineDto = z.object({
 
 @Controller('v1')
 export class SalesController {
-  constructor(@Inject(DB) private db: Db) {}
+  constructor(@Inject(DB) private db: Db, @Inject(MAILER) private mailer: Mailer) {}
 
   private audit(tx: Pick<Db, 'insert'>, req: any, entity: string, recordId: string, action: string, newValue?: unknown) {
     return tx.insert(s.auditLogs).values({ tenantId: req.user.tenantId, entity, recordId, action, changedBy: req.user.id, newValue });
@@ -136,7 +137,19 @@ export class SalesController {
     const lines = await this.lines(q.id);
     if (!lines.length) throw new ConflictException({ code: 'NO_LINES' });
     const needsApproval = lines.some((l) => Number(l.discountPercent) > DISCOUNT_APPROVAL_PERCENT);
-    return this.transition(req, id, ['draft'], needsApproval ? 'pending_approval' : 'approved');
+    const moved = await this.transition(req, id, ['draft'], needsApproval ? 'pending_approval' : 'approved');
+    if (needsApproval) await this.notifyApprovers(moved.tenantId, moved.number);
+    return moved;
+  }
+
+  /** Email is best effort: a mail outage must never block the sale. The in-app alert still shows. */
+  private async notifyApprovers(tenantId: string, number: string) {
+    try {
+      const rows = await this.db.selectDistinct({ email: s.users.email }).from(s.users)
+        .innerJoin(s.userRoles, eq(s.userRoles.userId, s.users.id)).innerJoin(s.rolePermissions, eq(s.rolePermissions.roleId, s.userRoles.roleId))
+        .where(and(eq(s.users.tenantId, tenantId), eq(s.users.active, true), eq(s.rolePermissions.permission, 'sales.approve')));
+      await this.mailer.send(rows.map((r) => r.email), `Approval needed: ${number}`, `Quotation ${number} has a discount that needs your approval. Please review it in the portal.`);
+    } catch (e) { console.error('Approval email failed', (e as Error).message); }
   }
 
   @Perm('sales.approve') @Post('quotations/:id/approve') approve(@Req() req: any, @Param('id') id: string) { return this.transition(req, id, ['pending_approval'], 'approved'); }
