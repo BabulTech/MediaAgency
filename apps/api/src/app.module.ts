@@ -8,6 +8,7 @@ import { CrmController } from './crm';
 import { FinanceController } from './finance';
 import { priceRequest, toRule } from './pricing';
 import { FILES, FileStore, OperationsController, supabaseFiles } from './operations';
+import { ImportController } from './imports';
 import { ReportsController } from './reports';
 import { SalesController } from './sales';
 import { RateCardsController } from './rate-cards';
@@ -105,6 +106,6 @@ export class PricingController {
 @Module({})
 export class AppModule {
   static forDb(db: Db, identity: IdentityProvider = supabaseIdentity(), files: FileStore = supabaseFiles()): DynamicModule {
-    return { module: AppModule, controllers: [SettingsController, AuthController, UsersController, MediaController, RateCardsController, CrmController, SalesController, OperationsController, FinanceController, ReportsController, PricingController], providers: [{ provide: DB, useValue: db }, { provide: IDENTITY, useValue: identity }, { provide: FILES, useValue: files }, { provide: APP_GUARD, useValue: new AuthGuard(db, identity) }] };
+    return { module: AppModule, controllers: [SettingsController, AuthController, UsersController, MediaController, RateCardsController, CrmController, SalesController, OperationsController, FinanceController, ReportsController, ImportController, PricingController], providers: [{ provide: DB, useValue: db }, { provide: IDENTITY, useValue: identity }, { provide: FILES, useValue: files }, { provide: APP_GUARD, useValue: new AuthGuard(db, identity) }] };
   }
 }

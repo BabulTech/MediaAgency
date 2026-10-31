@@ -4,6 +4,7 @@ import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, Field, Select, Status, useLoad } from '@/components/ui';
 import { api, Outlet, RateCard } from '@/lib/api';
+import { ExportBar } from '@/components/ExportBar';
 import { useI18n } from '@/lib/i18n';
 
 export default function RateCardsPage() {
@@ -29,6 +30,7 @@ export default function RateCardsPage() {
   return (
     <div className="stack">
       <h1>{t('rateCards')}</h1>
+      <ExportBar name="rate-cards" rows={data.cards.map((c) => ({ name: c.name, kind: c.kind, status: c.status, date: c.effectiveFrom }))} />
       {error && <p className="error">{t('apiDown')}</p>}
       <Card>
         {data.cards.length === 0 && <p className="muted">{t('noRecords')}</p>}

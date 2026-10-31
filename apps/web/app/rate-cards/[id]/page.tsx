@@ -3,7 +3,9 @@ import { ChangeEvent, FormEvent, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, Field, NumberField, Row, Select, Status, useLoad } from '@/components/ui';
 import { api, RateCard } from '@/lib/api';
-import { rulesToCsv, csvToRules, RuleRow } from '@/lib/csv';
+import { RuleRow } from '@/lib/csv';
+import { readRows } from '@/lib/sheet';
+import { ExportBar } from '@/components/ExportBar';
 import { useI18n } from '@/lib/i18n';
 import { DictKey } from '@/lib/dict';
 
@@ -35,16 +37,8 @@ export default function RateCardPage() {
     e.target.value = '';
     if (!file) return;
     setMessage('');
-    const res = await run('/rules/bulk', { rules: csvToRules(await file.text()) });
+    const res = await run('/rules/bulk', { rules: await readRows(file) });
     if (!res) setMessage(t('importFailed'));
-  }
-
-  function exportCsv() {
-    if (!data) return;
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([rulesToCsv(data.rules)], { type: 'text/csv' }));
-    a.download = `rate-card-v${data.card.version}.csv`;
-    a.click();
   }
 
   if (error) return <p className="error">{t('apiDown')}</p>;
@@ -55,6 +49,7 @@ export default function RateCardPage() {
   return (
     <div className="stack">
       <h1>{card.name}</h1>
+      <ExportBar name="rate-rules" rows={rules.map(({ formatCode, editionCode, timeBandCode, priority, unit, rate, multiplier, minimumCharge }) => ({ formatCode, editionCode, timeBandCode, priority, unit, rate, multiplier, minimumCharge }))} />
       <Status value={card.status} />
       <p className="muted">v{card.version} · {t(card.kind === 'selling' ? 'selling' : 'supplier')} · {t('effectiveFrom')} {card.effectiveFrom}</p>
       {card.isSample && <small className="tag">{t('sampleRate')}</small>}
@@ -69,8 +64,7 @@ export default function RateCardPage() {
           </div>
         ))}
         <div className="artwork mt">
-          <button type="button" className="btn" onClick={exportCsv}>{t('exportCsv')}</button>
-          {draft && <label className="btn">{t('importCsv')}<input type="file" accept=".csv" hidden onChange={importCsv} /></label>}
+                    {draft && <label className="btn">{t('importSheet')}<input type="file" accept=".csv,.xlsx" hidden onChange={importCsv} /></label>}
         </div>
       </Card>
 

@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { Card, Field, Select, Status, useLoad } from '@/components/ui';
 import { api, Customer } from '@/lib/api';
+import { ExportBar } from '@/components/ExportBar';
 import { useI18n } from '@/lib/i18n';
 
 const TYPES = ['corporate', 'individual', 'government', 'public_sector', 'ngo', 'agency', 'other'] as const;
@@ -29,6 +30,7 @@ export default function CustomersPage() {
   return (
     <div className="stack">
       <h1>{t('customers')}</h1>
+      <ExportBar name="customers" rows={data.map(({ id: _i, ...c }) => c) as never} />
       {error && <p className="error">{t('apiDown')}</p>}
       <Card>
         <input className="input" type="search" aria-label={t('search')} placeholder={t('search')} value={q} onChange={(e) => setQ(e.target.value)} />

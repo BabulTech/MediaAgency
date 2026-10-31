@@ -2,6 +2,7 @@
 import { FormEvent, useState } from 'react';
 import { Card, Field, NumberField, Row, Select, useLoad } from '@/components/ui';
 import { api, Customer } from '@/lib/api';
+import { ExportBar } from '@/components/ExportBar';
 import { useI18n } from '@/lib/i18n';
 
 type Inv = { invoice: { id: string; number: string; customerId: string; dueDate: string; total: string }; customerName: string; balance: string };
@@ -51,6 +52,7 @@ export default function FinancePage() {
   return (
     <div className="stack">
       <h1>{t('finance')}</h1>
+      <ExportBar name="invoices" rows={invoices.map((r) => ({ number: r.invoice.number, customer: r.customerName, dueDate: r.invoice.dueDate, total: r.invoice.total, balance: r.balance }))} />
       {message && <p className="error">{message}</p>}
       <Card>
         <Row label={t('receivables')} value={pkr(summary.receivables)} />

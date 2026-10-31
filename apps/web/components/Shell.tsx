@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Settings, Bell, BarChart3, Menu, CalendarDays, LayoutDashboard, Building2, Landmark, CalendarCheck, Calculator, Contact, FileText, ShoppingCart, LogOut, Moon, Sun, Tags, Users } from 'lucide-react';
+import { Upload, Settings, Bell, BarChart3, Menu, CalendarDays, LayoutDashboard, Building2, Landmark, CalendarCheck, Calculator, Contact, FileText, ShoppingCart, LogOut, Moon, Sun, Tags, Users } from 'lucide-react';
 import { ReactNode, useEffect, useState } from 'react';
 import { api, isPortalOnly, Me } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
@@ -18,6 +18,7 @@ const NAV = [
   { href: '/rate-cards', key: 'rateCards', icon: Tags },
   { href: '/calendar', key: 'calendar', icon: CalendarDays },
   { href: '/reports', key: 'reports', icon: BarChart3 },
+  { href: '/import', key: 'importData', icon: Upload },
 ] as const;
 
 export function Shell({ children }: { children: ReactNode }) {

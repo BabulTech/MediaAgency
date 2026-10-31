@@ -17,7 +17,7 @@ const amount = blank(z.string().regex(/^\d+(\.\d{1,2})?$/));
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
 const CUSTOMER_TYPES = ['individual', 'corporate', 'government', 'public_sector', 'ngo', 'agency', 'other'] as const;
-const customerDto = z.object({
+export const customerDto = z.object({
   name: z.string().trim().min(1).max(200), legalName: text(), type: z.enum(CUSTOMER_TYPES).default('corporate'),
   ntn: text(40), strn: text(40), phone: text(40), email: blank(z.string().email()), address: text(500), city: text(100), province: text(100),
   industry: text(100), creditLimit: amount, paymentTerms: text(100), status: z.enum(['active', 'inactive']).default('active'), notes: text(2000),

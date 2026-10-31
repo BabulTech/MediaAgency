@@ -470,3 +470,38 @@ describe('documents', () => {
     expect((await get(`/v1/finance/invoices/${inv.id}/document`, 'ro@example.com')).status).toBe(403);
   });
 });
+
+describe('report catalogue and imports', () => {
+  const get = (p: string, t = token) => fetch(url + p, { headers: headers(t) });
+  it('runs all 30+ reports without error', async () => {
+    const list = await (await get('/v1/reports')).json();
+    expect(list.length).toBeGreaterThanOrEqual(30);
+    for (const r of list) expect([r.name, (await get(`/v1/reports/${r.name}`)).status]).toEqual([r.name, 200]);
+  });
+  it('blocks finance reports by permission on the server', async () => {
+    expect((await get('/v1/reports/gross-profit', 'ro@example.com')).status).toBe(403);
+    const list = await (await get('/v1/reports', 'ro@example.com')).json();
+    expect(list.some((r: any) => r.name === 'gross-profit')).toBe(false);
+  });
+  it('previews, then imports all or nothing, and catches duplicates', async () => {
+    const rows = [{ name: 'Imported One', phone: '', email: '' }, { name: 'Imported Two', type: 'ngo' }];
+    const dry = await (await post('/v1/import/customers', { rows })).json();
+    expect(dry).toMatchObject({ valid: 2, imported: 0 });
+    expect((await (await get('/v1/customers?q=Imported')).json()).length).toBe(0);
+    const bad = [...rows, { name: 'imported one' }, { name: 'X', email: 'nope' }];
+    const preview = await (await post('/v1/import/customers', { rows: bad })).json();
+    expect(preview.errors.map((e: any) => e.row)).toEqual([3, 4]);
+    expect((await post('/v1/import/customers', { rows: bad, dryRun: false })).status).toBe(400);
+    expect((await (await get('/v1/customers?q=Imported')).json()).length).toBe(0);
+    expect((await (await post('/v1/import/customers', { rows, dryRun: false })).json()).imported).toBe(2);
+    expect((await (await post('/v1/import/customers', { rows })).json()).errors.length).toBe(2);
+  });
+  it('imports outlets by code', async () => {
+    const res = await post('/v1/import/outlets', { dryRun: false, rows: [{ code: 'IMP-1', name: 'Imported Paper', categoryCode: 'newspaper', organizationCode: 'SAMPLE' }] });
+    expect((await res.json()).imported).toBe(1);
+    expect((await (await post('/v1/import/outlets', { rows: [{ code: 'IMP-2', name: 'X', categoryCode: 'nope', organizationCode: 'SAMPLE' }] })).json()).errors[0].message).toContain('Unknown category');
+  });
+  it('stops read-only users importing', async () => {
+    expect((await post('/v1/import/customers', { rows: [{ name: 'N' }] }, 'ro@example.com')).status).toBe(403);
+  });
+});

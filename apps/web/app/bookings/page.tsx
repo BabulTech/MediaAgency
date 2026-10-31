@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { Card, Status, useLoad } from '@/components/ui';
 import { api } from '@/lib/api';
+import { ExportBar } from '@/components/ExportBar';
 import { useI18n } from '@/lib/i18n';
 
 type Row = { booking: { id: string; number: string; status: string; requestedDate: string; placementId: string }; outletName: string };
@@ -12,6 +13,7 @@ export default function BookingsPage() {
   return (
     <div className="stack">
       <h1>{t('bookings')}</h1>
+      <ExportBar name="bookings" rows={data.map((r) => ({ number: r.booking.number, outlet: r.outletName, date: r.booking.requestedDate, status: r.booking.status }))} />
       {error && <p className="error">{t('apiDown')}</p>}
       <Card>
         {data.length === 0 && <p className="muted">{t('noRecords')}</p>}

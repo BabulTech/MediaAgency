@@ -1,8 +1,9 @@
-import { BadRequestException, Controller, Get, Inject, NotFoundException, Param, Query, Req } from '@nestjs/common';
+import { BadRequestException, Controller, ForbiddenException, Get, Inject, NotFoundException, Param, Query, Req } from '@nestjs/common';
 import { sumMoney } from '@mamp/pricing';
 import { and, eq, gte, inArray, lte, ne } from 'drizzle-orm';
 import { Perm } from './auth';
 import { DB, Db } from './db';
+import { REPORTS, runReport, totals } from './report-catalog';
 import * as s from './schema';
 
 const today = () => new Date(Date.now() + 5 * 3600000).toISOString().slice(0, 10); // Pakistan Standard Time
@@ -12,16 +13,6 @@ const validDay = (v: string | undefined, fallback: string) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) throw new BadRequestException({ code: 'BAD_DATE' });
   return v;
 };
-
-function totals<T>(rows: T[], key: (r: T) => string, amount: (r: T) => string) {
-  const groups = new Map<string, { name: string; count: number; amounts: string[] }>();
-  for (const r of rows) {
-    const k = key(r);
-    const g = groups.get(k) ?? { name: k, count: 0, amounts: [] };
-    g.count += 1; g.amounts.push(amount(r)); groups.set(k, g);
-  }
-  return [...groups.values()].map((g) => ({ name: g.name, count: g.count, total: sumMoney(g.amounts) })).sort((a, b) => Number(b.total) - Number(a.total));
-}
 
 /**
  * Definitions: "sales" is the selling net of placements on non-cancelled orders, dated by the
@@ -70,22 +61,16 @@ export class ReportsController {
     };
   }
 
-  @Perm('sales.read') @Get('reports/:name')
+  /** Only the reports this person may run. */
+  @Get('reports')
+  catalog(@Req() req: any) { return REPORTS.filter((r) => req.user.permissions.includes(r.permission)).map(({ name, group }) => ({ name, group })); }
+
+  @Get('reports/:name')
   async report(@Req() req: any, @Param('name') name: string, @Query('from') from?: string, @Query('to') to?: string) {
-    const tenantId: string = req.user.tenantId;
-    const start = validDay(from, '2000-01-01');
-    const end = validDay(to, '2100-01-01');
-    if (name === 'sales-by-customer') return totals(await this.sales(tenantId, start, end), (r) => r.customerName, (r) => r.p.net);
-    if (name === 'sales-by-outlet') return totals(await this.sales(tenantId, start, end), (r) => r.outletName, (r) => r.p.net);
-    if (name === 'pending-bookings') return (await this.openBookings(tenantId)).map((r) => ({ number: r.b.number, outlet: r.outletName, date: r.b.requestedDate, status: r.b.status }));
-    if (name === 'proof-pending') return (await this.unverified(tenantId)).map((r) => ({ outlet: r.outletName, format: r.p.formatCode, date: r.p.date }));
-    if (name === 'quotation-conversion') {
-      const rows = await this.db.select({ status: s.quotations.status }).from(s.quotations).where(eq(s.quotations.tenantId, tenantId));
-      const decided = rows.filter((r) => r.status === 'accepted' || r.status === 'rejected').length;
-      const accepted = rows.filter((r) => r.status === 'accepted').length;
-      return [{ quotations: rows.length, accepted, rejected: decided - accepted, conversionPercent: decided ? ((accepted / decided) * 100).toFixed(1) : null }];
-    }
-    throw new NotFoundException({ code: 'NOT_FOUND' });
+    const entry = REPORTS.find((r) => r.name === name);
+    if (!entry) throw new NotFoundException({ code: 'NOT_FOUND' });
+    if (!req.user.permissions.includes(entry.permission)) throw new ForbiddenException({ code: 'FORBIDDEN' });
+    return runReport(this.db, req.user.tenantId, name, validDay(from, '2000-01-01'), validDay(to, '2100-01-01'));
   }
 
   @Perm('sales.read') @Get('calendar')

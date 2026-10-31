@@ -4,6 +4,7 @@ import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, Field, Select, Status, useLoad } from '@/components/ui';
 import { api, Customer } from '@/lib/api';
+import { ExportBar } from '@/components/ExportBar';
 import { useI18n } from '@/lib/i18n';
 
 type Row = { quotation: { id: string; number: string; status: string; total: string }; customerName: string };
@@ -32,6 +33,7 @@ export default function QuotationsPage() {
   return (
     <div className="stack">
       <h1>{t('quotations')}</h1>
+      <ExportBar name="quotations" rows={data.rows.map((r) => ({ number: r.quotation.number, customer: r.customerName, status: r.quotation.status, total: r.quotation.total }))} />
       {error && <p className="error">{t('apiDown')}</p>}
       <Card>
         {data.rows.length === 0 && <p className="muted">{t('noRecords')}</p>}

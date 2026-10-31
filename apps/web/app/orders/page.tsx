@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { Card, Status, useLoad } from '@/components/ui';
 import { api } from '@/lib/api';
+import { ExportBar } from '@/components/ExportBar';
 import { useI18n } from '@/lib/i18n';
 
 type Row = { order: { id: string; number: string; status: string; total: string }; customerName: string };
@@ -12,6 +13,7 @@ export default function OrdersPage() {
   return (
     <div className="stack">
       <h1>{t('orders')}</h1>
+      <ExportBar name="orders" rows={data.map((r) => ({ number: r.order.number, customer: r.customerName, status: r.order.status, total: r.order.total }))} />
       {error && <p className="error">{t('apiDown')}</p>}
       <Card>
         {data.length === 0 && <p className="muted">{t('noRecords')}</p>}

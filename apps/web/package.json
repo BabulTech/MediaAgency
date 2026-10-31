@@ -10,6 +10,7 @@
   "dependencies": {
     "@mamp/pricing": "*",
     "@supabase/supabase-js": "^2.118.0",
+    "exceljs": "^4.4.0",
     "lucide-react": "^0.460.0",
     "next": "^15.1.0",
     "react": "^19.0.0",

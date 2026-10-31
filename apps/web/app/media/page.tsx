@@ -2,6 +2,7 @@
 import { FormEvent, useState } from 'react';
 import { Card, Field, Select, useLoad } from '@/components/ui';
 import { api, Category, Organization, Outlet } from '@/lib/api';
+import { ExportBar } from '@/components/ExportBar';
 import { useI18n } from '@/lib/i18n';
 
 export default function MediaPage() {
@@ -33,6 +34,7 @@ export default function MediaPage() {
   return (
     <div className="stack">
       <h1>{t('media')}</h1>
+      <ExportBar name="outlets" rows={data.outlets.map((o) => ({ code: o.code, name: o.name, category: data.categories.find((c) => c.id === o.categoryId)?.name, organization: data.organizations.find((c) => c.id === o.organizationId)?.name }))} />
       {error && <p className="error">{t('apiDown')}</p>}
       <Card title={t('outlets')}>
         {data.outlets.length === 0 && <p className="muted">{t('noRecords')}</p>}
