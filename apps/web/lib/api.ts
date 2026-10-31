@@ -12,6 +12,10 @@ export interface Me { id: string; name: string; email: string; roles: string[]; 
 export interface User { id: string; email: string; name: string; active: boolean; roles: string[] }
 export interface Role { id: string; code: string; name: string }
 
+export interface Customer { id: string; number: string; name: string; type: string; phone: string | null; email: string | null; city: string | null; ntn: string | null; creditLimit: string | null; status: string }
+export interface Contact { id: string; name: string; phone: string | null; email: string | null }
+export interface Campaign { id: string; name: string; startDate: string; endDate: string; budget: string | null; status: string }
+
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const { data } = await supabase.auth.getSession();
   const auth: Record<string, string> = data.session ? { Authorization: `Bearer ${data.session.access_token}` } : {};

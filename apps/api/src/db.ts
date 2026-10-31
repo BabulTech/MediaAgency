@@ -60,14 +60,14 @@ async function seed(db: Db) {
   await seedAccess(db);
 }
 
-const READ = ['media.read', 'ratecards.read'];
+const READ = ['media.read', 'ratecards.read', 'sales.read'];
 const PRICE = [...READ, 'pricing.calculate'];
 const MANAGE = [...PRICE, 'media.write', 'ratecards.write'];
-const ADMIN = [...MANAGE, 'ratecards.approve', 'users.read', 'users.write', 'audit.read'];
+const ADMIN = [...MANAGE, 'sales.write', 'ratecards.approve', 'users.read', 'users.write', 'audit.read'];
 export const DEFAULT_ROLES: [string, string, string[]][] = [
   ['super_admin', 'Super Administrator', ADMIN], ['agency_admin', 'Agency Administrator', ADMIN],
   ['director', 'Chief Executive / Director', [...PRICE, 'users.read', 'audit.read']],
-  ['sales_manager', 'Sales Manager', PRICE], ['sales_executive', 'Sales Executive', PRICE],
+  ['sales_manager', 'Sales Manager', [...PRICE, 'sales.write']], ['sales_executive', 'Sales Executive', [...PRICE, 'sales.write']],
   ['booking_manager', 'Booking Manager', MANAGE], ['newspaper_booking', 'Newspaper Booking Officer', PRICE],
   ['broadcast_booking', 'TV/Radio Booking Officer', PRICE], ['creative_manager', 'Creative/Artwork Manager', READ],
   ['finance_manager', 'Finance Manager', PRICE], ['accountant', 'Accountant', PRICE],

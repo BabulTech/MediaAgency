@@ -138,8 +138,40 @@ describe('rate cards', () => {
     const c = await draft();
     expect((await post(`/v1/rate-cards/${c.id}/rules`, { ...rule, multiplier: '', minimumCharge: '', timeBandCode: '' })).status).toBe(201);
   });
+  it('expires a published card and removes it from pricing', async () => {
+    const c = await draft();
+    await post(`/v1/rate-cards/${c.id}/rules`, rule);
+    expect((await post(`/v1/rate-cards/${c.id}/expire`, {})).status).toBe(409);
+    await post(`/v1/rate-cards/${c.id}/publish`, {});
+    expect((await (await post(`/v1/rate-cards/${c.id}/expire`, {})).json()).status).toBe('expired');
+  });
   it('blocks read-only users from editing', async () => {
     const c = await draft();
     expect((await post(`/v1/rate-cards/${c.id}/rules`, rule, 'ro@example.com')).status).toBe(403);
+  });
+});
+
+describe('customers and campaigns', () => {
+  const mk = (name: string, t = token) => post('/v1/customers', { name, phone: '', email: '' }, t);
+  it('numbers customers uniquely even when concurrent', async () => {
+    const rows = await Promise.all(['A', 'B', 'C'].map((n) => mk(n).then((r) => r.json())));
+    expect(new Set(rows.map((r) => r.number)).size).toBe(3);
+  });
+  it('searches literally', async () => {
+    await mk('Lahore Foods');
+    const found = await (await fetch(`${url}/v1/customers?q=lahore`, { headers: headers(token) })).json();
+    expect(found.length).toBe(1);
+    expect(await (await fetch(`${url}/v1/customers?q=%25`, { headers: headers(token) })).json()).toEqual([]);
+  });
+  it('rejects a campaign ending before it starts', async () => {
+    const c = await (await mk('D')).json();
+    expect((await post('/v1/campaigns', { customerId: c.id, name: 'X', startDate: '2027-02-01', endDate: '2027-01-01' })).status).toBe(400);
+    expect((await post('/v1/campaigns', { customerId: c.id, name: 'X', startDate: '2027-01-01', endDate: '2027-02-01' })).status).toBe(201);
+    const d = await (await fetch(`${url}/v1/customers/${c.id}`, { headers: headers(token) })).json();
+    expect(d.campaigns.length).toBe(1);
+  });
+  it('lets read-only users view but not change', async () => {
+    expect((await fetch(`${url}/v1/customers`, { headers: headers('ro@example.com') })).status).toBe(200);
+    expect((await mk('No', 'ro@example.com')).status).toBe(403);
   });
 });

@@ -72,3 +72,28 @@ export const rolePermissions = pgTable('role_permissions', {
 export const userRoles = pgTable('user_roles', {
   userId: uuid('user_id').notNull().references(() => users.id), roleId: uuid('role_id').notNull().references(() => roles.id),
 }, (t) => [primaryKey({ columns: [t.userId, t.roleId] })]);
+
+export const counters = pgTable('counters', {
+  tenantId: tenantId(), key: text('key').notNull(), value: integer('value').notNull(),
+}, (t) => [primaryKey({ columns: [t.tenantId, t.key] })]);
+
+export const customers = pgTable('customers', {
+  id: id(), tenantId: tenantId(), number: text('number').notNull(), name: text('name').notNull(), legalName: text('legal_name'),
+  type: text('type').notNull().default('corporate'), ntn: text('ntn'), strn: text('strn'), phone: text('phone'), email: text('email'),
+  address: text('address'), city: text('city'), province: text('province'), industry: text('industry'),
+  salesOwnerId: uuid('sales_owner_id').references(() => users.id), creditLimit: money('credit_limit'), paymentTerms: text('payment_terms'),
+  status: text('status').notNull().default('active'), notes: text('notes'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [unique().on(t.tenantId, t.number)]);
+
+export const customerContacts = pgTable('customer_contacts', {
+  id: id(), tenantId: tenantId(), customerId: uuid('customer_id').notNull().references(() => customers.id),
+  name: text('name').notNull(), title: text('title'), phone: text('phone'), email: text('email'),
+});
+
+export const campaigns = pgTable('campaigns', {
+  id: id(), tenantId: tenantId(), customerId: uuid('customer_id').notNull().references(() => customers.id),
+  name: text('name').notNull(), objective: text('objective'), startDate: date('start_date').notNull(), endDate: date('end_date').notNull(),
+  budget: money('budget'), ownerId: uuid('owner_id').references(() => users.id), status: text('status').notNull().default('planned'), description: text('description'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
