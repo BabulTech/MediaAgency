@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm';
 import { PricingUnit, PricingError, RateRule, priceLine, selectRule } from '@mamp/pricing';
 import { z } from 'zod';
 import { APP_GUARD } from '@nestjs/core';
-import { AuthController, AuthGuard, Perm, UsersController } from './auth';
+import { AuthController, AuthGuard, IDENTITY, IdentityProvider, Perm, UsersController, supabaseIdentity } from './auth';
 import { DB, Db, rulesForOutlet } from './db';
 import * as s from './schema';
 
@@ -100,7 +100,7 @@ export class PricingController {
 
 @Module({})
 export class AppModule {
-  static forDb(db: Db): DynamicModule {
-    return { module: AppModule, controllers: [AuthController, UsersController, MediaController, PricingController], providers: [{ provide: DB, useValue: db }, { provide: APP_GUARD, useValue: new AuthGuard(db) }] };
+  static forDb(db: Db, identity: IdentityProvider = supabaseIdentity()): DynamicModule {
+    return { module: AppModule, controllers: [AuthController, UsersController, MediaController, PricingController], providers: [{ provide: DB, useValue: db }, { provide: IDENTITY, useValue: identity }, { provide: APP_GUARD, useValue: new AuthGuard(db, identity) }] };
   }
 }

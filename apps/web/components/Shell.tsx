@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import { Building2, Calculator, LogOut, Moon, Sun, Tags, Users } from 'lucide-react';
 import { ReactNode, useEffect, useState } from 'react';
 import { api, Me } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 import { useI18n } from '@/lib/i18n';
 
 const NAV = [
@@ -15,10 +16,10 @@ const NAV = [
 export function Shell({ children }: { children: ReactNode }) {
   const { t, theme, toggleLang, toggleTheme } = useI18n();
   const path = usePathname();
-  const isLogin = path === '/login';
+  const isLogin = path === '/login' || path === '/reset-password';
   const [me, setMe] = useState<Me | null>(null);
   useEffect(() => { if (!isLogin) api<Me>('/auth/me').then(setMe).catch(() => setMe(null)); }, [isLogin]);
-  const logout = async () => { await api('/auth/logout', { method: 'POST' }).catch(() => undefined); window.location.href = '/login'; };
+  const logout = async () => { await supabase.auth.signOut(); window.location.href = '/login'; };
   const items = me?.permissions.includes('users.read') ? [...NAV, { href: '/users', key: 'users', icon: Users } as const] : NAV;
   const links = items.map(({ href, key, icon: Icon }) => (
     <Link key={href} href={href} aria-current={path.startsWith(href) ? 'page' : undefined}><Icon size={18} />{t(key)}</Link>

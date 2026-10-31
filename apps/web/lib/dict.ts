@@ -36,7 +36,7 @@ const en = {
   adBadge: 'Ad', anchorLive: 'LIVE', headlineFiller: 'Sample headline for layout preview',
   outlets: 'Outlets', addOutlet: 'Add outlet', name: 'Name', code: 'Code', category: 'Category', organization: 'Organization', save: 'Save',
   duplicateCode: 'That code is already in use.', saveFailed: 'Could not save.', noRecords: 'No records yet.',
-  users: 'Users', login: 'Sign in', logout: 'Sign out', email: 'Email', password: 'Password', badLogin: 'Incorrect email or password.', locked: 'Account locked for 15 minutes after repeated failures.', addUser: 'Add user', role: 'Role', active: 'Active', inactive: 'Inactive', activate: 'Activate', deactivate: 'Deactivate', passwordHint: 'At least 10 characters', accessDenied: 'You do not have access to this page.',
+  forgotPassword: 'Forgot password', enterEmail: 'Enter your email first.', resetSent: 'If that account exists, a reset link has been emailed.', users: 'Users', login: 'Sign in', logout: 'Sign out', email: 'Email', password: 'Password', badLogin: 'Incorrect email or password.', addUser: 'Add user', role: 'Role', active: 'Active', inactive: 'Inactive', activate: 'Activate', deactivate: 'Deactivate', passwordHint: 'At least 10 characters', accessDenied: 'You do not have access to this page.',
   kind: 'Type', selling: 'Selling', supplier: 'Purchase', status: 'Status', effectiveFrom: 'Effective from', sample: 'Sample',
 };
 
@@ -78,7 +78,7 @@ const ur: Record<DictKey, string> = {
   adBadge: 'اشتہار', anchorLive: 'براہِ راست', headlineFiller: 'خاکے کے لیے نمونہ سرخی',
   outlets: 'ادارے', addOutlet: 'نیا ادارہ شامل کریں', name: 'نام', code: 'کوڈ', category: 'زمرہ', organization: 'تنظیم', save: 'محفوظ کریں',
   duplicateCode: 'یہ کوڈ پہلے سے استعمال میں ہے۔', saveFailed: 'محفوظ نہیں ہو سکا۔', noRecords: 'ابھی کوئی ریکارڈ نہیں۔',
-  users: 'صارفین', login: 'سائن ان', logout: 'سائن آؤٹ', email: 'ای میل', password: 'پاس ورڈ', badLogin: 'ای میل یا پاس ورڈ غلط ہے۔', locked: 'بار بار ناکامی پر اکاؤنٹ 15 منٹ کے لیے بند ہے۔', addUser: 'نیا صارف شامل کریں', role: 'کردار', active: 'فعال', inactive: 'غیر فعال', activate: 'فعال کریں', deactivate: 'غیر فعال کریں', passwordHint: 'کم از کم 10 حروف', accessDenied: 'آپ کو اس صفحے تک رسائی نہیں۔',
+  forgotPassword: 'پاس ورڈ بھول گئے', enterEmail: 'پہلے اپنا ای میل درج کریں۔', resetSent: 'اگر یہ اکاؤنٹ موجود ہے تو ری سیٹ لنک ای میل کر دیا گیا ہے۔', users: 'صارفین', login: 'سائن ان', logout: 'سائن آؤٹ', email: 'ای میل', password: 'پاس ورڈ', badLogin: 'ای میل یا پاس ورڈ غلط ہے۔', addUser: 'نیا صارف شامل کریں', role: 'کردار', active: 'فعال', inactive: 'غیر فعال', activate: 'فعال کریں', deactivate: 'غیر فعال کریں', passwordHint: 'کم از کم 10 حروف', accessDenied: 'آپ کو اس صفحے تک رسائی نہیں۔',
   kind: 'قسم', selling: 'فروخت', supplier: 'خرید', status: 'حیثیت', effectiveFrom: 'نفاذ کی تاریخ', sample: 'نمونہ',
 };
 

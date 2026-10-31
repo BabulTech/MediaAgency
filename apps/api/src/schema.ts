@@ -55,10 +55,8 @@ export const auditLogs = pgTable('audit_logs', {
 });
 
 export const users = pgTable('users', {
-  id: id(), tenantId: tenantId(), email: text('email').notNull().unique(), name: text('name').notNull(),
-  passwordHash: text('password_hash').notNull(), active: boolean('active').notNull().default(true),
-  failedLogins: integer('failed_logins').notNull().default(0),
-  lockedUntil: timestamp('locked_until', { withTimezone: true }),
+  id: id(), tenantId: tenantId(), authId: uuid('auth_id').unique(), email: text('email').notNull().unique(), name: text('name').notNull(),
+  active: boolean('active').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -73,9 +71,3 @@ export const rolePermissions = pgTable('role_permissions', {
 export const userRoles = pgTable('user_roles', {
   userId: uuid('user_id').notNull().references(() => users.id), roleId: uuid('role_id').notNull().references(() => roles.id),
 }, (t) => [primaryKey({ columns: [t.userId, t.roleId] })]);
-
-export const userSessions = pgTable('user_sessions', {
-  id: id(), userId: uuid('user_id').notNull().references(() => users.id), tokenHash: text('token_hash').notNull().unique(),
-  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(), revokedAt: timestamp('revoked_at', { withTimezone: true }),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});

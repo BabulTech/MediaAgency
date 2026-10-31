@@ -1,4 +1,5 @@
 import type { RateRule } from '@mamp/pricing';
+import { supabase } from './supabase';
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -12,8 +13,10 @@ export interface User { id: string; email: string; name: string; active: boolean
 export interface Role { id: string; code: string; name: string }
 
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}/v1${path}`, { ...init, credentials: 'include', headers: { 'content-type': 'application/json', ...init?.headers } });
-  if (res.status === 401 && path !== '/auth/login' && typeof window !== 'undefined') window.location.href = '/login';
+  const { data } = await supabase.auth.getSession();
+  const auth: Record<string, string> = data.session ? { Authorization: `Bearer ${data.session.access_token}` } : {};
+  const res = await fetch(`${BASE}/v1${path}`, { ...init, headers: { 'content-type': 'application/json', ...auth, ...init?.headers } });
+  if (res.status === 401 && typeof window !== 'undefined') window.location.href = '/login';
   if (!res.ok) throw Object.assign(new Error(`API ${res.status}`), { status: res.status });
   return res.status === 204 ? (undefined as T) : res.json();
 }

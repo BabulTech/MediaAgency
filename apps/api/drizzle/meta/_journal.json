@@ -22,6 +22,20 @@
       "when": 1793452541365,
       "tag": "0002_enable_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793452919864,
+      "tag": "0003_lean_komodo",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793452931130,
+      "tag": "0004_lucky_payback",
+      "breakpoints": true
     }
   ]
 }

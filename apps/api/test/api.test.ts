@@ -1,31 +1,37 @@
 import 'reflect-metadata';
+import { randomUUID } from 'node:crypto';
 import { INestApplication } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppModule } from '../src/app.module';
+import { IdentityProvider } from '../src/auth';
 import { Db, openDb } from '../src/db';
-import { auditLogs, mediaOutlets, pricingSnapshots, tenants } from '../src/schema';
+import { auditLogs, mediaOutlets, pricingSnapshots, tenants, users } from '../src/schema';
 
 let app: INestApplication; let url: string; let db: Db;
-let cookie = '';
-const post = (p: string, body: unknown, c = cookie) => fetch(url + p, { method: 'POST', headers: { 'content-type': 'application/json', cookie: c }, body: JSON.stringify(body) });
-const login = async (email: string, password: string) => {
-  const res = await post('/v1/auth/login', { email, password }, '');
-  return (res.headers.get('set-cookie') ?? '').split(';')[0];
+let token = 'admin@example.com';
+const headers = (t: string) => ({ 'content-type': 'application/json', authorization: `Bearer ${t}` });
+const post = (p: string, body: unknown, t = token) => fetch(url + p, { method: 'POST', headers: headers(t), body: JSON.stringify(body) });
+const accounts = new Map<string, string>(); // token -> Supabase id
+const banned = new Set<string>();
+const identity: IdentityProvider = {
+  verify: async (t) => { const id = accounts.get(t); return id && !banned.has(id) ? id : null; },
+  create: async (email) => { const id = randomUUID(); accounts.set(email, id); return id; },
+  setBanned: async (id, b) => { if (b) banned.add(id); else banned.delete(id); },
 };
 
 beforeAll(async () => {
-  process.env.SEED_ADMIN_PASSWORD = 'test-password-1';
   db = await openDb({ memory: true });
-  app = await NestFactory.create(AppModule.forDb(db), { logger: false });
+  app = await NestFactory.create(AppModule.forDb(db, identity), { logger: false });
   await app.listen(0, '127.0.0.1');
   url = (await app.getUrl()).replace('[::1]', 'localhost');
-  cookie = await login('admin@example.com', 'test-password-1');
+  const adminId = await identity.create('admin@example.com', '');
+  await db.update(users).set({ authId: adminId }).where(eq(users.email, 'admin@example.com'));
 }, 30000);
 afterAll(() => app.close());
 
-const outlet = async (code: string) => ((await (await fetch(`${url}/v1/outlets`, { headers: { cookie } })).json()) as any[]).find((o) => o.code === code);
+const outlet = async (code: string) => ((await (await fetch(`${url}/v1/outlets`, { headers: headers(token) })).json()) as any[]).find((o) => o.code === code);
 
 describe('pricing API', () => {
   it('prices the TV reference and stores a snapshot', async () => {
@@ -61,36 +67,31 @@ describe('outlets', () => {
 
 describe('access control', () => {
   const user = (email: string, roleCodes: string[]) => post('/v1/users', { email, name: 'U', password: 'long-password-1', roleCodes });
-  const get = (p: string, c: string) => fetch(url + p, { headers: { cookie: c } });
+  const get = (p: string, t: string) => fetch(url + p, { headers: headers(t) });
 
-  it('refuses anonymous requests', async () => {
-    expect((await get('/v1/outlets', '')).status).toBe(401);
+  it('refuses anonymous and unknown tokens', async () => {
+    expect((await fetch(`${url}/v1/outlets`)).status).toBe(401);
+    expect((await get('/v1/outlets', 'bogus')).status).toBe(401);
+  });
+  it('refuses a valid Supabase account nobody provisioned', async () => {
+    accounts.set('stranger', randomUUID());
+    expect((await get('/v1/auth/me', 'stranger')).status).toBe(401);
   });
   it('enforces permissions on the server', async () => {
     await user('ro@example.com', ['read_only']);
-    const c = await login('ro@example.com', 'long-password-1');
-    expect((await get('/v1/outlets', c)).status).toBe(200);
-    expect((await get('/v1/users', c)).status).toBe(403);
-    expect((await post('/v1/users', {}, c)).status).toBe(403);
-    expect((await post('/v1/outlets', {}, c)).status).toBe(403);
+    expect((await get('/v1/outlets', 'ro@example.com')).status).toBe(200);
+    expect((await get('/v1/users', 'ro@example.com')).status).toBe(403);
+    expect((await post('/v1/users', {}, 'ro@example.com')).status).toBe(403);
+    expect((await post('/v1/outlets', {}, 'ro@example.com')).status).toBe(403);
   });
   it('gives portal users nothing internal', async () => {
     await user('cust@example.com', ['customer_portal']);
-    expect((await get('/v1/outlets', await login('cust@example.com', 'long-password-1'))).status).toBe(403);
+    expect((await get('/v1/outlets', 'cust@example.com')).status).toBe(403);
   });
-  it('locks after five failures, without revealing it to wrong-password probes first', async () => {
-    await user('lock@example.com', ['read_only']);
-    for (let i = 0; i < 5; i++) expect((await post('/v1/auth/login', { email: 'lock@example.com', password: 'nope' }, '')).status).toBe(401);
-    expect((await post('/v1/auth/login', { email: 'lock@example.com', password: 'long-password-1' }, '')).status).toBe(423);
-  });
-  it('revokes sessions on deactivate and on logout', async () => {
+  it('cuts access on deactivate', async () => {
     const created = await (await user('gone@example.com', ['read_only'])).json();
-    const c = await login('gone@example.com', 'long-password-1');
-    await fetch(`${url}/v1/users/${created.id}/active`, { method: 'PATCH', headers: { 'content-type': 'application/json', cookie }, body: JSON.stringify({ active: false }) });
-    expect((await get('/v1/auth/me', c)).status).toBe(401);
-    const c2 = await login('ro@example.com', 'long-password-1');
-    await post('/v1/auth/logout', {}, c2);
-    expect((await get('/v1/auth/me', c2)).status).toBe(401);
+    await fetch(`${url}/v1/users/${created.id}/active`, { method: 'PATCH', headers: headers(token), body: JSON.stringify({ active: false }) });
+    expect((await get('/v1/auth/me', 'gone@example.com')).status).toBe(401);
   });
   it('hides other tenants records', async () => {
     const [other] = await db.insert(tenants).values({ name: 'Other' }).returning();

@@ -25,13 +25,15 @@
 
 | Phase | State |
 |---|---|
-| 1 Foundation | Mostly done: login, hashed passwords, revocable sessions, lockout, 15 roles, server-side permissions, tenant filtering, user admin, audit. **Missing: password recovery, MFA, role editor, field and ownership permissions, database RLS, rate limiting, audit viewer** |
+| 1 Foundation | Mostly done: login, hashed passwords, revocable sessions, lockout, 15 roles, server-side permissions, tenant filtering, user admin, audit. **Missing: MFA, role editor, field and ownership permissions, database RLS, rate limiting, audit viewer** |
 | 2 Media and rate cards | Partial: outlets list/create, read-only rate cards, engine, calculators, previews. No rate card editor, approval, versions UI or Excel import |
 | 3 to 7 | Not started: CRM, quotations, orders, bookings, creative, proofs, finance, dashboards, reports, portals |
 
 Rule 9.3 note: rule stacking, rule-level premiums and tax rules are not in the engine yet. Radio, digital and outdoor calculators are also outstanding.
 
 Deliverables not yet produced: full SRS, ERD, permission matrix, Swagger, Docker config, admin and user guides.
+
+Supabase: database, Auth login and password recovery are live. Storage, MFA, and per-tenant RLS policies are next.
 
 ## Next step
 

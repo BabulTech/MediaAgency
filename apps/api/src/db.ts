@@ -6,9 +6,7 @@ import { migrate as migratePglite } from 'drizzle-orm/pglite/migrator';
 import { drizzle as drizzlePg } from 'drizzle-orm/node-postgres';
 import { migrate as migratePg } from 'drizzle-orm/node-postgres/migrator';
 import { Pool } from 'pg';
-import { randomBytes } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
-import { hashPassword } from './auth';
 import * as s from './schema';
 
 export const DB = Symbol('DB');
@@ -88,10 +86,8 @@ async function seedAccess(db: Db) {
     if (permissions.length) await db.insert(s.rolePermissions).values(permissions.map((permission) => ({ roleId: role.id, permission })));
   }
   const email = process.env.SEED_ADMIN_EMAIL ?? 'admin@example.com';
-  const password = process.env.SEED_ADMIN_PASSWORD ?? randomBytes(12).toString('base64url');
-  const [admin] = await db.insert(s.users).values({ tenantId: tenant.id, email, name: 'Administrator', passwordHash: await hashPassword(password) }).returning();
+  const [admin] = await db.insert(s.users).values({ tenantId: tenant.id, email, name: 'Administrator' }).returning();
   await db.insert(s.userRoles).values({ userId: admin.id, roleId: adminRole });
-  if (!process.env.SEED_ADMIN_PASSWORD) console.log(`First admin created: ${email} / ${password} (shown once)`);
 }
 
 export const rulesForOutlet = (db: Db, tenantId: string, outletId: string) =>
