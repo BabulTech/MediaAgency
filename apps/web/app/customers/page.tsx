@@ -30,7 +30,7 @@ export default function CustomersPage() {
   return (
     <div className="stack">
       <h1>{t('customers')}</h1>
-      <ExportBar name="customers" rows={data.map(({ id: _i, ...c }) => c) as never} />
+      <ExportBar name="customers" rows={data.map(({ number, name, type, phone, email, city, ntn, creditLimit, status }) => ({ number, name, type, phone, email, city, ntn, creditLimit, status }))} />
       {error && <p className="error">{t('apiDown')}</p>}
       <Card>
         <input className="input" type="search" aria-label={t('search')} placeholder={t('search')} value={q} onChange={(e) => setQ(e.target.value)} />
