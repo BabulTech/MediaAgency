@@ -1,8 +1,6 @@
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { PGlite } from '@electric-sql/pglite';
-import { drizzle as drizzlePglite } from 'drizzle-orm/pglite';
-import { migrate as migratePglite } from 'drizzle-orm/pglite/migrator';
+import type { drizzle as drizzlePglite } from 'drizzle-orm/pglite';
 import { drizzle as drizzlePg } from 'drizzle-orm/node-postgres';
 import { migrate as migratePg } from 'drizzle-orm/node-postgres/migrator';
 import { Pool } from 'pg';
@@ -16,15 +14,19 @@ const migrationsFolder = join(__dirname, '..', 'drizzle');
 
 export async function openDb(opts: { memory?: boolean } = {}): Promise<Db> {
   if (process.env.DATABASE_URL && !opts.memory) {
-    const db = drizzlePg(new Pool({ connectionString: process.env.DATABASE_URL, ssl: process.env.DATABASE_URL.includes('supabase') ? { rejectUnauthorized: false } : undefined }), { schema: s });
-    await migratePg(db, { migrationsFolder });
-    await seed(db as unknown as Db);
+    const db = drizzlePg(new Pool({ max: process.env.VERCEL ? 1 : 10, connectionString: process.env.DATABASE_URL, ssl: process.env.DATABASE_URL.includes('supabase') ? { rejectUnauthorized: false } : undefined }), { schema: s });
+    // On Vercel each cold start must stay fast, so migrations run from a machine with npm run bootstrap-admin.
+    if (!process.env.VERCEL) {
+      await migratePg(db, { migrationsFolder });
+      await seed(db as unknown as Db);
+    }
     return db as unknown as Db;
   }
+  const [{ PGlite }, { drizzle }, { migrate }] = await Promise.all([import('@electric-sql/pglite'), import('drizzle-orm/pglite'), import('drizzle-orm/pglite/migrator')]);
   let dataDir: string | undefined;
   if (!opts.memory) { dataDir = join(__dirname, '..', '.data'); mkdirSync(dataDir, { recursive: true }); }
-  const db = drizzlePglite(new PGlite(dataDir), { schema: s });
-  await migratePglite(db, { migrationsFolder });
+  const db = drizzle(new PGlite(dataDir), { schema: s });
+  await migrate(db, { migrationsFolder });
   await seed(db);
   return db;
 }
