@@ -31,7 +31,7 @@ const quickDto = z.object({
   customerId: z.string().uuid().optional(),
   customer: z.object({ name: z.string().trim().min(1).max(200), phone: z.string().trim().max(40).optional(), email: z.string().trim().email().or(z.literal('')).optional(), city: z.string().trim().max(100).optional() }).optional(),
   notes: z.string().trim().max(2000).optional(),
-  lines: z.array(lineDto.extend({ unit: z.string().min(1), rate: z.number().nonnegative(), multiplier: z.number().positive().optional(), surchargePercent: z.number().min(0).max(100).optional(), ad: z.object({ heading: z.string().max(300), body: z.string().max(2000), lang: z.string().max(5) }).partial().optional() })).min(1).max(50),
+  lines: z.array(lineDto.extend({ unit: z.string().min(1), rate: z.number().nonnegative(), multiplier: z.number().positive().optional(), surchargePercent: z.number().min(0).max(100).optional(), ad: z.object({ heading: z.string().max(300), body: z.string().max(2000), lang: z.string().max(5) }).partial().optional(), spec: z.object({ pageType: z.string().max(40), position: z.string().max(40), colour: z.string().max(40) }).partial().optional() })).min(1).max(50),
 }).refine((d) => d.customerId || d.customer, { message: 'customer required' });
 const ORDER_STATUSES: Record<string, string[]> = { confirmed: ['inactive', 'completed'], inactive: ['confirmed', 'completed'], completed: ['confirmed'] };
 const sentDto = z.object({ sentOn: day, sentVia: z.string().trim().min(1).max(40), sentNote: z.string().trim().max(500).optional() });

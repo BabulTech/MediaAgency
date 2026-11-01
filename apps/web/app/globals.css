@@ -223,9 +223,12 @@ a.row:hover { background:var(--surface2); }
 @keyframes spin { to { transform:rotate(360deg); } }
 @keyframes pulse { 50% { opacity:.4; } }
 @media (max-width:640px) { .neworder span { display:none; } }
-.shell.focus { grid-template-columns:minmax(0,1fr); }
-.shell.focus .sidebar { display:none; }
-.shell.focus .content { max-width:none; }
+.shell.wide .content { max-width:none; }
+.railbtn { margin-block:8px; }
+.sidebar { overflow:auto; transition:width .15s; }
+.sidebar.rail { width:64px; padding-inline:10px; }
+.sidebar.rail .brand span, .sidebar.rail nav a span { display:none; }
+.sidebar.rail nav a { justify-content:center; padding-inline:0; }
 .order-layout { display:grid; gap:16px; grid-template-columns:minmax(0,1fr); align-items:start; }
 #order-preview:empty { display:none; }
 @media (min-width:900px) {

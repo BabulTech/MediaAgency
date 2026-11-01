@@ -42,7 +42,7 @@ export function NewspaperCalculator({ onDraft }: { onDraft?: (d: AdDraft | null)
     } catch { return null; }
   }, [unit, rate, premiumFixed, discountPercent, surchargePercent, widthCm, heightCm, columns, words, lines, insertions]);
 
-  const draft = onDraft ? { outletId: outlet?.id ?? '', outletName: outlet?.name ?? '', formatCode: format, unit, rate, premiumFixed, surchargePercent, discountPercent, quantity: Object.fromEntries(Object.entries({ widthCm, heightCm, columns, words, lines, insertions }).filter(([, v]) => Number.isFinite(v))), ad: { heading: ad.heading, body: ad.body, lang: ad.lang }, total: price?.total ?? null } : null;
+  const draft = onDraft ? { outletId: outlet?.id ?? '', outletName: outlet?.name ?? '', formatCode: format, unit, rate, premiumFixed, surchargePercent, discountPercent, quantity: Object.fromEntries(Object.entries({ widthCm, heightCm, columns, words, lines, insertions }).filter(([, v]) => Number.isFinite(v))), spec: { pageType, position, colour }, ad: { heading: ad.heading, body: ad.body, lang: ad.lang }, total: price?.total ?? null } : null;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { onDraft?.(draft); }, [JSON.stringify(draft)]);
   const isSize = unit === 'per_sq_cm' || unit === 'per_sq_inch' || unit === 'per_column_cm';

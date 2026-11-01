@@ -4,7 +4,7 @@ import { useI18n } from '@/lib/i18n';
 
 export interface AdLine {
   outletName: string; formatCode: string; date: string; net: string;
-  request?: { unit?: string; rate?: number; multiplier?: number; timeBandCode?: string; quantity?: Record<string, number>; ad?: { heading?: string; body?: string } };
+  request?: { unit?: string; rate?: number; multiplier?: number; timeBandCode?: string; quantity?: Record<string, number>; spec?: { pageType?: string; position?: string; colour?: string }; ad?: { heading?: string; body?: string; lang?: string } };
   snapshot?: { unit?: string; rate?: string; breakdown?: { base?: string; surcharge?: string; premium?: string; discount?: string } };
 }
 
@@ -25,6 +25,11 @@ export function AdBreakdown({ line }: { line: AdLine }) {
   const b = line.snapshot?.breakdown;
   const q = line.request?.quantity ?? {};
   const facts: [string, string][] = [[t('format'), t(line.formatCode as DictKey) ?? line.formatCode], [t('publishDate'), line.date]];
+  const spec = line.request?.spec;
+  if (spec?.pageType) facts.push([t('pageType'), t(spec.pageType as DictKey) ?? spec.pageType]);
+  if (spec?.position) facts.push([t('position'), t(spec.position as DictKey) ?? spec.position]);
+  if (spec?.colour) facts.push([t('colour'), t(spec.colour === 'colour' ? 'colour' : 'blackWhite')]);
+  if (line.request?.ad?.lang) facts.push([t('adLanguage'), t(line.request.ad.lang === 'ur' ? 'urdu' : 'english')]);
   if (line.request?.ad?.heading) facts.push([t('heading'), line.request.ad.heading]);
   if (line.request?.ad?.body) facts.push([t('body'), line.request.ad.body]);
   if (line.request?.timeBandCode) facts.push([t('timeBand'), t(line.request.timeBandCode as DictKey) ?? line.request.timeBandCode]);
