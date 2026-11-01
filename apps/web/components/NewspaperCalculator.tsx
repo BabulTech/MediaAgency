@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { priceLine, PricingUnit } from '@mamp/pricing';
 import { Outlet } from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
-import { AdDraft, PAPER_FORMATS } from '@/lib/media';
+import { AD_SIZES, AdDraft, PAPER_FORMATS } from '@/lib/media';
 import { AdContent, AdFields, sampleAd } from './AdFields';
 import { NewspaperPreview, PagePosition, PageType } from './NewspaperPreview';
 import { OutletRatePicker } from './OutletRatePicker';
@@ -63,6 +63,7 @@ export function NewspaperCalculator({ onDraft }: { onDraft?: (d: AdDraft | null)
           <Select label={t('format')} value={format} onChange={setFormat} options={PAPER_FORMATS.map((f) => ({ value: f as string, label: t(f) }))} />
           <Select label={t('pricingMethod')} value={unit} onChange={setUnit} options={UNITS.map((u) => ({ value: u, label: t(u) }))} />
           <NumberField label={t('rate')} value={rate} onChange={setRate} />
+          <Select label={t('standardSize')} value="" onChange={(code) => { const z = AD_SIZES.find((x) => x.code === code); if (z) { setWidth(z.widthCm); setHeight(z.heightCm); setColumns(z.columns); } }} options={[{ value: '', label: t('customSize') }, ...AD_SIZES.map((z) => ({ value: z.code as string, label: z.label }))]} />
           <SliderField label={t('width')} unit=" cm" value={widthCm} min={1} max={Math.max(pageWidthCm, 1)} onChange={setWidth} />
           <SliderField label={t('height')} unit=" cm" value={heightCm} min={1} max={Math.max(pageHeightCm, 1)} onChange={setHeight} />
           {unit === 'per_column_cm' && <NumberField label={t('columns')} value={columns} onChange={setColumns} />}

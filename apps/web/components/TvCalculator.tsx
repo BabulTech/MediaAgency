@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { priceLine, PricingUnit } from '@mamp/pricing';
 import { Outlet } from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
-import { AdDraft } from '@/lib/media';
+import { AdDraft, TV_DURATIONS } from '@/lib/media';
 import { AdContent, AdFields, sampleAd } from './AdFields';
 import { OutletRatePicker } from './OutletRatePicker';
 import { TvFormat, TvPreview } from './TvPreview';
@@ -53,7 +53,7 @@ export function TvCalculator({ onDraft }: { onDraft?: (d: AdDraft | null) => voi
           <Select label={t('format')} value={format} options={FORMATS.map((f) => ({ value: f.code, label: t(f.code) }))}
             onChange={(code) => { setFormat(code); setUnit(FORMATS.find((f) => f.code === code)!.unit); }} />
           <Select label={t('pricingMethod')} value={unit} onChange={setUnit} options={UNITS.map((u) => ({ value: u, label: t(u) }))} />
-          <NumberField label={t('duration')} value={durationSeconds} onChange={setDuration} />
+          <Select label={t('duration')} value={String(durationSeconds)} onChange={(v) => setDuration(Number(v))} options={TV_DURATIONS.map((d) => ({ value: String(d), label: `${d} sec` }))} />
           {byPeriod
             ? <NumberField label={t('periods')} value={periods} onChange={setPeriods} />
             : <NumberField label={t('spots')} value={spots} onChange={setSpots} />}
