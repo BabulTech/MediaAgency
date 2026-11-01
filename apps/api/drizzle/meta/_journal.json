@@ -141,6 +141,13 @@
       "when": 1793465220239,
       "tag": "0019_field_access",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1793513385612,
+      "tag": "0020_brave_vulcan",
+      "breakpoints": true
     }
   ]
 }

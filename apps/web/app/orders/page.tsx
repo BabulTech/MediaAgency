@@ -13,15 +13,13 @@ export default function OrdersPage() {
   return (
     <div className="stack">
       <h1>{t('orders')}</h1>
-      <p className="muted">{t('ordersHint')}</p>
-      <div className="quick"><Link className="btn primary" href="/quotations">{t('newQuotationAction')}</Link></div>
-      <ExportBar name="orders" rows={data.map((r) => ({ number: r.order.number, customer: r.customerName, status: r.order.status, total: r.order.total }))} />
+            <ExportBar name="orders" rows={data.map((r) => ({ number: r.order.number, customer: r.customerName, status: r.order.status, total: r.order.total }))} />
       {error && <p className="error">{t('apiDown')}</p>}
       <Card>
         {data.length === 0 && <p className="muted">{t('noRecords')}</p>}
         {data.map(({ order: o, customerName }) => (
           <Link className="row" key={o.id} href={`/orders/${o.id}`}>
-            <span><b>{o.number}</b><br /><small className="muted">{customerName}</small></span><span className="row-end"><Status value={o.status} /><b>{pkr(o.total)}</b></span>
+            <span><b>{o.number}</b><br /><small className="muted">{customerName}</small></span><span className="row-end"><Status value={o.status === 'confirmed' ? 'active' : o.status} /><b>{pkr(o.total)}</b></span>
           </Link>
         ))}
       </Card>

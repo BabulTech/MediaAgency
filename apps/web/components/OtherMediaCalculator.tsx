@@ -1,11 +1,13 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { priceLine, PricingUnit } from '@mamp/pricing';
+import { Outlet } from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
-import { MEDIA_UNITS, OTHER_FORMATS, OtherKind } from '@/lib/media';
+import { OutletRatePicker } from './OutletRatePicker';
+import { AdDraft, MEDIA_UNITS, OTHER_FORMATS, OtherKind } from '@/lib/media';
 import { Card, NumberField, Result, Select, SliderField } from './ui';
 
-export function OtherMediaCalculator() {
+export function OtherMediaCalculator({ onDraft }: { onDraft?: (d: AdDraft | null) => void }) {
   const { t, pkr } = useI18n();
   const [kind, setKind] = useState<OtherKind>('radio');
   const [format, setFormat] = useState<string>(OTHER_FORMATS.radio[0]);
@@ -19,17 +21,22 @@ export function OtherMediaCalculator() {
   const [views, setViews] = useState(1000);
   const [premiumFixed, setPremium] = useState(0);
   const [discountPercent, setDiscount] = useState(0);
+  const [outlet, setOutlet] = useState<Outlet | null>(null);
 
   const price = useMemo(() => {
     try { return priceLine({ unit, rate, premiumFixed, discountPercent, quantity: { durationSeconds, spots, periods, impressions, clicks, views } }); } catch { return null; }
   }, [unit, rate, premiumFixed, discountPercent, durationSeconds, spots, periods, impressions, clicks, views]);
 
+  const draft = onDraft && outlet ? { outletId: outlet.id, outletName: outlet.name, formatCode: format, unit, rate, premiumFixed, discountPercent, quantity: Object.fromEntries(Object.entries({ durationSeconds, spots, periods, impressions, clicks, views }).filter(([, v]) => Number.isFinite(v))), total: price?.total ?? null } : null;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { onDraft?.(draft); }, [JSON.stringify(draft)]);
   const change = (k: OtherKind) => { setKind(k); setFormat(OTHER_FORMATS[k][0]); setUnit(MEDIA_UNITS[k][0]); };
 
   return (
     <Card title={t('otherTitle')}>
       <div className="grid2">
         <Select label={t('category')} value={kind} onChange={change} options={(Object.keys(OTHER_FORMATS) as OtherKind[]).map((k) => ({ value: k, label: t(k) }))} />
+        <OutletRatePicker key={kind} categoryCode={kind} formatCode={format} onOutlet={setOutlet} onRule={(r) => { setUnit(r.unit); setRate(Number(r.rate)); }} />
         <Select label={t('format')} value={format} onChange={setFormat} options={OTHER_FORMATS[kind].map((f) => ({ value: f, label: t(f) }))} />
         <Select label={t('pricingMethod')} value={unit} onChange={setUnit} options={MEDIA_UNITS[kind].map((u) => ({ value: u, label: t(u) }))} />
         <NumberField label={t('rate')} value={rate} onChange={setRate} />

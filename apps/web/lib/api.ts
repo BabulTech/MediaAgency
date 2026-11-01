@@ -18,7 +18,29 @@ export interface Campaign { id: string; name: string; startDate: string; endDate
 
 export const isPortalOnly = (me: Me | null) => !!me && me.permissions.some((p) => p.startsWith('portal.')) && !me.permissions.includes('sales.read');
 
+const CACHE_MS = 20_000;
+const cache = new Map<string, { until: number; value: unknown }>();
+let pending = 0;
+const listeners = new Set<(busy: boolean) => void>();
+const track = (n: number) => { pending += n; listeners.forEach((l) => l(pending > 0)); };
+export const onBusy = (l: (busy: boolean) => void) => { listeners.add(l); return () => { listeners.delete(l); }; };
+
+/** Reads are reused briefly so moving between screens is instant. Any save clears them. */
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
+  const read = !init?.method || init.method === 'GET';
+  const hit = read ? cache.get(path) : undefined;
+  if (hit && hit.until > Date.now()) return hit.value as T;
+  if (!read) cache.clear();
+  track(1);
+  try {
+    const value = await request<T>(path, init);
+    if (read) cache.set(path, { until: Date.now() + CACHE_MS, value });
+    else cache.clear();
+    return value;
+  } finally { track(-1); }
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const { data } = await supabase.auth.getSession();
   const auth: Record<string, string> = data.session ? { Authorization: `Bearer ${data.session.access_token}` } : {};
   const res = await fetch(`${BASE}/v1${path}`, { ...init, headers: { 'content-type': 'application/json', ...auth, ...init?.headers } });

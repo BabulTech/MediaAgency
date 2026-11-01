@@ -79,7 +79,9 @@ export class FinanceController {
     if (!r) throw new NotFoundException({ code: 'NOT_FOUND' });
     const lines = await this.db.select().from(s.customerInvoiceLines).where(eq(s.customerInvoiceLines.invoiceId, r.i.id));
     const balance = (await this.invoicesWithBalance(tenantId)).find((x) => x.invoice.id === r.i.id)!.balance;
-    return { agency: r.tenant.name, company: { address: r.tenant.address, phone: r.tenant.phone, email: r.tenant.email, ntn: r.tenant.ntn, bankDetails: r.tenant.bankDetails }, number: r.i.number, date: r.i.invoiceDate, dueDate: r.i.dueDate, party: r.party, subtotal: r.i.subtotal, tax: r.i.tax, total: r.i.total,
+    const payments = await this.db.select({ date: s.customerPayments.date, method: s.customerPayments.method, reference: s.customerPayments.reference, amount: s.customerPaymentAllocations.amount }).from(s.customerPaymentAllocations)
+      .innerJoin(s.customerPayments, eq(s.customerPaymentAllocations.paymentId, s.customerPayments.id)).where(eq(s.customerPaymentAllocations.invoiceId, r.i.id));
+    return { payments, agency: r.tenant.name, company: { address: r.tenant.address, phone: r.tenant.phone, email: r.tenant.email, ntn: r.tenant.ntn, bankDetails: r.tenant.bankDetails }, number: r.i.number, date: r.i.invoiceDate, dueDate: r.i.dueDate, party: r.party, subtotal: r.i.subtotal, tax: r.i.tax, total: r.i.total,
       paid: sumMoney([r.i.total, `-${balance}`]), balance, lines: lines.map((l) => ({ description: l.description, amount: l.amount })) };
   }
   @Perm('finance.read') @Get('finance/invoices/:id/document') document(@Req() req: any, @Param('id') id: string) { return this.invoiceDocument(req.user.tenantId, id); }
@@ -93,7 +95,7 @@ export class FinanceController {
     return this.db.select({ placement: s.placements, orderNumber: s.orders.number }).from(s.placements)
       .innerJoin(s.orders, eq(s.placements.orderId, s.orders.id))
       .leftJoin(s.customerInvoiceLines, eq(s.customerInvoiceLines.placementId, s.placements.id))
-      .where(and(eq(s.placements.tenantId, req.user.tenantId), eq(s.orders.customerId, uuid(customerId)), eq(s.orders.status, 'confirmed'),
+      .where(and(eq(s.placements.tenantId, req.user.tenantId), eq(s.orders.customerId, uuid(customerId)), inArray(s.orders.status, ['confirmed', 'completed']),
         inArray(s.placements.status, ['executed', 'verified']), isNull(s.customerInvoiceLines.id)));
   }
 
@@ -102,6 +104,44 @@ export class FinanceController {
     return this.db.select({ booking: s.supplierBookings }).from(s.supplierBookings)
       .leftJoin(s.supplierBillLines, eq(s.supplierBillLines.bookingId, s.supplierBookings.id))
       .where(and(eq(s.supplierBookings.tenantId, req.user.tenantId), inArray(s.supplierBookings.status, ['confirmed', 'executed']), isNull(s.supplierBillLines.id)));
+  }
+
+  /** Invoices and payments for one order screen. Agencies bill up front, so this ignores whether the ad has run. */
+  @Perm('finance.read') @Get('finance/orders/:id')
+  async orderFinance(@Req() req: any, @Param('id') id: string) {
+    const lines = await this.db.select({ invoiceId: s.customerInvoiceLines.invoiceId, placementId: s.customerInvoiceLines.placementId }).from(s.customerInvoiceLines)
+      .innerJoin(s.placements, eq(s.customerInvoiceLines.placementId, s.placements.id)).where(and(eq(s.placements.orderId, uuid(id)), eq(s.placements.tenantId, req.user.tenantId)));
+    const ids = [...new Set(lines.map((l) => l.invoiceId))];
+    if (!ids.length) return { invoices: [], payments: [], invoicedPlacements: [] };
+    const invoices = (await this.invoicesWithBalance(req.user.tenantId)).filter((i) => ids.includes(i.invoice.id));
+    const payments = await this.db.select({ id: s.customerPaymentAllocations.id, number: s.customerPayments.number, date: s.customerPayments.date, method: s.customerPayments.method, reference: s.customerPayments.reference, amount: s.customerPaymentAllocations.amount, invoiceId: s.customerPaymentAllocations.invoiceId }).from(s.customerPaymentAllocations)
+      .innerJoin(s.customerPayments, eq(s.customerPaymentAllocations.paymentId, s.customerPayments.id)).where(inArray(s.customerPaymentAllocations.invoiceId, ids));
+    return { invoices, payments, invoicedPlacements: lines.map((l) => l.placementId) };
+  }
+
+  @Perm('finance.write') @Post('finance/orders/:id/invoice')
+  async invoiceOrder(@Req() req: any, @Param('id') id: string, @Body() body: unknown) {
+    const dto = parse(z.object({ invoiceDate: day, dueDate: day, taxPercent: z.number().min(0).max(100).default(0) }), body);
+    const tenantId: string = req.user.tenantId;
+    if (dto.dueDate < dto.invoiceDate) throw new BadRequestException({ code: 'DUE_BEFORE_INVOICE' });
+    const rows = await this.db.select({ p: s.placements, order: s.orders, outletName: s.mediaOutlets.name }).from(s.placements)
+      .innerJoin(s.orders, eq(s.placements.orderId, s.orders.id)).innerJoin(s.mediaOutlets, eq(s.placements.outletId, s.mediaOutlets.id))
+      .leftJoin(s.customerInvoiceLines, eq(s.customerInvoiceLines.placementId, s.placements.id))
+      .where(and(eq(s.orders.id, uuid(id)), eq(s.orders.tenantId, tenantId), inArray(s.orders.status, ['confirmed', 'completed']), isNull(s.customerInvoiceLines.id)));
+    if (!rows.length) throw new ConflictException({ code: 'NOT_ELIGIBLE' });
+    const subtotal = sumMoney(rows.map((r) => r.p.net));
+    const { tax, total } = priceLine({ unit: 'fixed', rate: subtotal, taxPercent: dto.taxPercent, quantity: {} });
+    return this.db.transaction(async (tx) => {
+      const n = await nextNumber(tx, tenantId, 'invoice');
+      const [inv] = await tx.insert(s.customerInvoices).values({
+        tenantId, number: `INV-${dto.invoiceDate.slice(0, 4)}-${String(n).padStart(5, '0')}`, customerId: rows[0].order.customerId,
+        invoiceDate: dto.invoiceDate, dueDate: dto.dueDate, subtotal, taxPercent: String(dto.taxPercent), tax, total, createdBy: req.user.id,
+      }).returning();
+      await tx.insert(s.customerInvoiceLines).values(rows.map((r) => ({ tenantId, invoiceId: inv.id, placementId: r.p.id, description: `${r.order.number} · ${r.outletName} · ${r.p.formatCode} · ${r.p.date}`, amount: r.p.net })));
+      await this.audit(tx, req, 'invoice', inv.id, 'issue', { total });
+      await this.audit(tx, req, 'order', id, 'invoiced', { invoice: inv.number });
+      return inv;
+    });
   }
 
   @Perm('finance.write') @Post('finance/invoices')
@@ -223,7 +263,7 @@ export class FinanceController {
     const tenantId: string = req.user.tenantId;
     const placements = await this.db.select({ p: s.placements, outletName: s.mediaOutlets.name, orderNumber: s.orders.number }).from(s.placements)
       .innerJoin(s.orders, eq(s.placements.orderId, s.orders.id)).innerJoin(s.mediaOutlets, eq(s.placements.outletId, s.mediaOutlets.id))
-      .where(and(eq(s.placements.tenantId, tenantId), eq(s.orders.status, 'confirmed'))).orderBy(desc(s.orders.createdAt)).limit(200);
+      .where(and(eq(s.placements.tenantId, tenantId), inArray(s.orders.status, ['confirmed', 'completed']))).orderBy(desc(s.orders.createdAt)).limit(200);
     const bookings = await this.db.select().from(s.supplierBookings).where(and(eq(s.supplierBookings.tenantId, tenantId), or(eq(s.supplierBookings.status, 'confirmed'), eq(s.supplierBookings.status, 'executed'))));
     const billLines = await this.db.select({ bookingId: s.supplierBillLines.bookingId, billId: s.supplierBillLines.billId, amount: s.supplierBills.amount }).from(s.supplierBillLines)
       .innerJoin(s.supplierBills, eq(s.supplierBillLines.billId, s.supplierBills.id)).where(eq(s.supplierBillLines.tenantId, tenantId));

@@ -117,7 +117,7 @@ export const quotationLines = pgTable('quotation_lines', {
 export const orders = pgTable('orders', {
   id: id(), tenantId: tenantId(), number: text('number').notNull(), customerId: uuid('customer_id').notNull().references(() => customers.id),
   campaignId: uuid('campaign_id').references(() => campaigns.id), quotationId: uuid('quotation_id').references(() => quotations.id).unique(),
-  status: text('status').notNull().default('confirmed'), total: money('total').notNull(), createdBy: uuid('created_by').references(() => users.id),
+  status: text('status').notNull().default('confirmed'), notes: text('notes'), total: money('total').notNull(), createdBy: uuid('created_by').references(() => users.id),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [unique().on(t.tenantId, t.number)]);
 
@@ -126,7 +126,7 @@ export const placements = pgTable('placements', {
   quotationLineId: uuid('quotation_line_id').references(() => quotationLines.id).unique(),
   outletId: uuid('outlet_id').notNull().references(() => mediaOutlets.id), formatCode: text('format_code').notNull(), date: date('date').notNull(),
   request: jsonb('request').notNull(), snapshot: jsonb('snapshot').notNull(), net: money('net').notNull(), supplierCost: money('supplier_cost'),
-  status: text('status').notNull().default('pending'),
+  status: text('status').notNull().default('pending'), sentOn: date('sent_on'), sentVia: text('sent_via'), sentNote: text('sent_note'),
 });
 
 export const supplierBookings = pgTable('supplier_bookings', {

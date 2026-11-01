@@ -1,7 +1,9 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { priceLine, PricingUnit } from '@mamp/pricing';
+import { Outlet } from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
+import { AdDraft } from '@/lib/media';
 import { AdContent, AdFields, sampleAd } from './AdFields';
 import { OutletRatePicker } from './OutletRatePicker';
 import { TvFormat, TvPreview } from './TvPreview';
@@ -17,18 +19,19 @@ const UNITS: PricingUnit[] = ['per_second', 'per_minute', 'per_spot', 'per_ticke
 const BANDS = { morning: 1, afternoon: 1.25, evening: 1.75, prime: 2.5, late: 0.75, special: 3 };
 type Band = keyof typeof BANDS;
 
-export function TvCalculator() {
+export function TvCalculator({ onDraft }: { onDraft?: (d: AdDraft | null) => void }) {
   const { t, pkr, lang } = useI18n();
   const [format, setFormat] = useState<TvFormat>('tvc');
   const [unit, setUnit] = useState<PricingUnit>('per_second');
   const [durationSeconds, setDuration] = useState(30);
-  const [spots, setSpots] = useState(5);
+  const [spots, setSpots] = useState(onDraft ? 1 : 5);
   const [periods, setPeriods] = useState(1);
   const [rate, setRate] = useState(1500);
-  const [band, setBand] = useState<Band>('special');
-  const [multiplier, setMultiplier] = useState(3);
+  const [band, setBand] = useState<Band>(onDraft ? 'morning' : 'special');
+  const [multiplier, setMultiplier] = useState(onDraft ? 1 : 3);
+  const [outlet, setOutlet] = useState<Outlet | null>(null);
   const [discountPercent, setDiscount] = useState(0);
-  const [ad, setAd] = useState<AdContent>({ lang, ...sampleAd[lang], artwork: null });
+  const [ad, setAd] = useState<AdContent>({ lang, ...(onDraft ? { heading: '', body: '' } : sampleAd[lang]), artwork: null });
 
   const price = useMemo(() => {
     try {
@@ -36,13 +39,16 @@ export function TvCalculator() {
     } catch { return null; }
   }, [unit, rate, multiplier, discountPercent, durationSeconds, spots, periods]);
 
+  const draft = onDraft && outlet ? { outletId: outlet.id, outletName: outlet.name, formatCode: format, timeBandCode: band, unit, rate, multiplier, discountPercent, quantity: Object.fromEntries(Object.entries({ durationSeconds, spots, periods }).filter(([, v]) => Number.isFinite(v))), ad: { heading: ad.heading, body: ad.body, lang: ad.lang }, total: price?.total ?? null } : null;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { onDraft?.(draft); }, [JSON.stringify(draft)]);
   const byPeriod = unit === 'per_day' || unit === 'per_week' || unit === 'per_month';
 
   return (
     <div className="stack">
       <Card title={t('tvTitle')}>
         <div className="grid2">
-          <OutletRatePicker categoryCode="tv" formatCode={format} timeBandCode={band}
+          <OutletRatePicker categoryCode="tv" formatCode={format} timeBandCode={band} onOutlet={setOutlet}
             onRule={(r) => { setUnit(r.unit); setRate(Number(r.rate)); if (r.multiplier) setMultiplier(Number(r.multiplier)); }} />
           <Select label={t('format')} value={format} options={FORMATS.map((f) => ({ value: f.code, label: t(f.code) }))}
             onChange={(code) => { setFormat(code); setUnit(FORMATS.find((f) => f.code === code)!.unit); }} />

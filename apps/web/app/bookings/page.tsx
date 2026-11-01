@@ -13,8 +13,6 @@ export default function BookingsPage() {
   return (
     <div className="stack">
       <h1>{t('bookings')}</h1>
-      <p className="muted">{t('bookingsHint')}</p>
-      <div className="quick"><Link className="btn primary" href="/orders">{t('orders')}</Link></div>
       <ExportBar name="bookings" rows={data.map((r) => ({ number: r.booking.number, outlet: r.outletName, date: r.booking.requestedDate, status: r.booking.status }))} />
       {error && <p className="error">{t('apiDown')}</p>}
       <Card>

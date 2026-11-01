@@ -215,3 +215,11 @@ a.row:hover { background:var(--surface2); }
   * { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
 }
 .quick { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+.neworder { display:inline-flex; align-items:center; gap:4px; }
+.row.pick { width:100%; background:none; border:0; border-bottom:1px solid var(--line); color:inherit; font:inherit; text-align:start; cursor:pointer; }
+.progress { position:fixed; inset-block-start:0; inset-inline:0; height:3px; z-index:50; background:var(--accent, #14b8a6); animation:pulse 1s ease-in-out infinite; }
+.page-loading { height:40vh; display:grid; place-items:center; }
+.page-loading i { width:28px; height:28px; border-radius:50%; border:3px solid var(--line); border-top-color:var(--accent, #14b8a6); animation:spin .7s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+@keyframes pulse { 50% { opacity:.4; } }
+@media (max-width:640px) { .neworder span { display:none; } }

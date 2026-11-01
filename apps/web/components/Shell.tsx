@@ -1,18 +1,18 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Shield, Upload, Settings, Bell, BarChart3, Menu, CalendarDays, LayoutDashboard, Building2, Landmark, CalendarCheck, Calculator, Contact, FileText, ShoppingCart, LogOut, Moon, Sun, Tags, Users } from 'lucide-react';
+import { Newspaper, Plus, Shield, Upload, Settings, Bell, BarChart3, Menu, CalendarDays, LayoutDashboard, Building2, Landmark, CalendarCheck, Calculator, Contact, FileText, ShoppingCart, LogOut, Moon, Sun, Tags, Users } from 'lucide-react';
 import { ReactNode, useEffect, useState } from 'react';
-import { api, isPortalOnly, Me } from '@/lib/api';
+import { api, isPortalOnly, Me, onBusy } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
 import { useI18n } from '@/lib/i18n';
 
 const NAV = [
   { href: '/dashboard', key: 'dashboard', icon: LayoutDashboard },
-  { href: '/calculators', key: 'calculators', icon: Calculator },
-  { href: '/customers', key: 'customers', icon: Contact },
-  { href: '/quotations', key: 'quotations', icon: FileText },
   { href: '/orders', key: 'orders', icon: ShoppingCart },
+  { href: '/customers', key: 'customers', icon: Contact },
+  { href: '/calculators', key: 'calculators', icon: Calculator },
+  { href: '/quotations', key: 'quotations', icon: FileText },
   { href: '/bookings', key: 'bookings', icon: CalendarCheck },
   { href: '/media', key: 'media', icon: Building2 },
   { href: '/rate-cards', key: 'rateCards', icon: Tags },
@@ -21,6 +21,12 @@ const NAV = [
   { href: '/import', key: 'importData', icon: Upload },
   { href: '/security', key: 'security', icon: Shield },
 ] as const;
+
+function ProgressBar() {
+  const [busy, setBusy] = useState(false);
+  useEffect(() => onBusy(setBusy), []);
+  return busy ? <div className="progress" /> : null;
+}
 
 export function Shell({ children }: { children: ReactNode }) {
   const { t, theme, toggleLang, toggleTheme } = useI18n();
@@ -40,7 +46,7 @@ export function Shell({ children }: { children: ReactNode }) {
     ...(me?.permissions.includes('users.read') ? [{ href: '/users', key: 'users', icon: Users } as const] : []),
     ...(me?.permissions.includes('users.write') ? [{ href: '/settings', key: 'settings', icon: Settings } as const] : [])];
   const links = items.map(({ href, key, icon: Icon }) => (
-    <Link key={href} href={href} aria-current={path.startsWith(href) ? 'page' : undefined}><Icon size={18} />{t(key)}</Link>
+    <Link key={href} href={href} aria-current={path.startsWith(href) && path !== '/orders/new' ? 'page' : undefined}><Icon size={18} />{t(key)}</Link>
   ));
   if (isLogin || path.startsWith('/print')) return <>{children}</>;
   return (
@@ -50,12 +56,14 @@ export function Shell({ children }: { children: ReactNode }) {
         <header className="topbar">
           <b className="brand mobile-only">{t('appName')}</b>
           <div className="actions">
+            {!portal && <Link className="btn primary neworder" href="/orders/new" aria-label={t('newOrder')}><Newspaper size={18} /><Plus size={14} /><span>{t('newOrder')}</span></Link>}
             <Link className="btn icon bell" href="/dashboard" aria-label={t('alerts')}><Bell size={18} />{alerts > 0 && <span>{alerts}</span>}</Link>
             <button type="button" className="btn" onClick={toggleLang}>{t('language')}</button>
             <button type="button" className="btn icon" aria-label={t('theme')} onClick={toggleTheme}>{theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}</button>
             <button type="button" className="btn icon" aria-label={t('logout')} title={t('logout')} onClick={logout}><LogOut size={18} /></button>
           </div>
         </header>
+        <ProgressBar />
         <main className="content">{children}</main>
       </div>
       {more && <nav className="moremenu">{links.slice(3)}</nav>}

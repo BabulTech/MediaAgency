@@ -8,7 +8,7 @@ import { useI18n } from '@/lib/i18n';
 type Doc = {
   agency: string; company?: { address: string | null; phone: string | null; email: string | null; ntn: string | null; bankDetails: string | null }; number: string; date: string; dueDate?: string; party: string; status?: string;
   lines: { description: string; amount?: string }[];
-  subtotal?: string; tax?: string; total?: string; paid?: string; balance?: string; note?: string;
+  subtotal?: string; tax?: string; total?: string; paid?: string; balance?: string; note?: string; payments?: { date: string; method: string | null; reference: string | null; amount: string }[];
 };
 const ROUTES: Record<string, (id: string) => string> = {
   quotation: (id) => `/quotations/${id}/document`,
@@ -38,6 +38,7 @@ export default function PrintPage() {
         {data.paid && <p>{t('paidAmount')}: {pkr(data.paid)}</p>}
         {data.balance && <p><b>{t('balanceDue')}: {pkr(data.balance)}</b></p>}
       </div>
+      {!!data.payments?.length && <table className="table doc-table"><tbody>{data.payments.map((p, i) => <tr key={i}><td>{[p.date, p.method && (t(p.method as DictKey) ?? p.method), p.reference].filter(Boolean).join(' · ')}</td><td>{pkr(p.amount)}</td></tr>)}</tbody></table>}
       {data.company?.bankDetails && type !== 'booking' && <p className="muted" style={{ whiteSpace: 'pre-line' }}>{data.company.bankDetails}</p>}
     </main>
   );

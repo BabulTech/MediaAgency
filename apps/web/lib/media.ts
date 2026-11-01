@@ -14,3 +14,9 @@ export const MEDIA_UNITS = {
   outdoor: ['per_month', 'per_week', 'per_day', 'fixed'],
 } as const;
 export const TIME_BANDS = ['morning', 'afternoon', 'evening', 'prime', 'late', 'special'] as const;
+
+/** One ad as a calculator reports it to the order form. */
+export interface AdDraft {
+  outletId: string; outletName: string; formatCode: string; timeBandCode?: string; unit: string; rate: number; multiplier?: number; premiumFixed?: number; surchargePercent?: number; discountPercent?: number;
+  quantity: Record<string, number>; ad?: { heading: string; body: string; lang: string }; total: string | null;
+}

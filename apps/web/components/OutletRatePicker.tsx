@@ -6,7 +6,7 @@ import { api, Category, Outlet, outletRules } from '@/lib/api';
 import { Select, useLoad } from './ui';
 
 interface Props {
-  categoryCode: 'newspaper' | 'tv';
+  categoryCode: string;
   formatCode: string;
   timeBandCode?: string;
   onRule: (rule: RateRule) => void;
@@ -48,7 +48,7 @@ export function OutletRatePicker({ categoryCode, formatCode, timeBandCode, onRul
         options={[{ value: '', label: t('manualEntry') }, ...data.map((o) => ({ value: o.id, label: o.name }))]} />
       {error && <small className="muted">{t('apiDown')}</small>}
       {state === 'loaded' && <small className="tag">{t('sampleRate')}</small>}
-      {state === 'none' && <small className="muted">{t('noRule')}</small>}
+      {state === 'none' && <small className="muted">{t('typeRate')}</small>}
     </div>
   );
 }

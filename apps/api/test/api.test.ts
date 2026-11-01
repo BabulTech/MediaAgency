@@ -583,3 +583,27 @@ describe('direct orders and history', () => {
     expect(h[0].user).toBe('Administrator');
   });
 });
+
+describe('quick order', () => {
+  it('goes from customer details to invoice, payment and completion', async () => {
+    const o = await outlet('SAMPLE-DAILY');
+    const line = { outletId: o.id, formatCode: 'display', date: '2026-11-20', unit: 'per_sq_cm', rate: 100, quantity: { widthCm: 10, heightCm: 10, insertions: 1 }, ad: { heading: 'Sale' } };
+    const res = await post('/v1/orders/quick', { customer: { name: 'Walk In' }, lines: [line] });
+    expect(res.status).toBe(201);
+    const order = await res.json();
+    expect(order.status).toBe('confirmed');
+    expect(Number(order.total)).toBe(10000);
+    const detail = await (await fetch(`${url}/v1/orders/${order.id}`, { headers: headers(token) })).json();
+    expect((await post(`/v1/placements/${detail.placements[0].placement.id}/sent`, { sentOn: '2026-11-18', sentVia: 'in_person' })).status).toBe(201);
+    const inv = await (await post(`/v1/finance/orders/${order.id}/invoice`, { invoiceDate: '2026-11-18', dueDate: '2026-11-30' })).json();
+    expect(Number(inv.total)).toBe(10000);
+    expect((await post(`/v1/finance/orders/${order.id}/invoice`, { invoiceDate: '2026-11-18', dueDate: '2026-11-30' })).status).toBe(409);
+    await post('/v1/finance/payments', { customerId: detail.customer.id, amount: '4000', date: '2026-11-19', method: 'cash', idempotencyKey: 'quick-order-1', allocations: [{ invoiceId: inv.id, amount: '4000' }] });
+    const fin = await (await fetch(`${url}/v1/finance/orders/${order.id}`, { headers: headers(token) })).json();
+    expect(Number(fin.invoices[0].balance)).toBe(6000);
+    const doc = await (await fetch(`${url}/v1/finance/invoices/${inv.id}/document`, { headers: headers(token) })).json();
+    expect(doc.payments[0].method).toBe('cash');
+    expect((await post(`/v1/orders/${order.id}/status`, { status: 'completed' })).status).toBe(201);
+    expect((await post(`/v1/orders/${order.id}/status`, { status: 'inactive' })).status).toBe(409);
+  });
+});

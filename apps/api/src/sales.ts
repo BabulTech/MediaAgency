@@ -1,5 +1,5 @@
 import { BadRequestException, Body, ConflictException, Controller, Delete, Get, Inject, NotFoundException, Param, Post, Req } from '@nestjs/common';
-import { sumMoney } from './pricing-engine';
+import { PricingError, priceLine, sumMoney } from './pricing-engine';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import { Perm } from './auth';
@@ -25,6 +25,16 @@ const lineDto = z.object({
   quantity: z.object({ widthCm: num, heightCm: num, columns: num, words: num, lines: num, insertions: num, durationSeconds: num, spots: num, periods: num, impressions: num, clicks: num, views: num }),
   premiumFixed: num, discountPercent: z.number().min(0).max(100).optional(),
 });
+
+const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const quickDto = z.object({
+  customerId: z.string().uuid().optional(),
+  customer: z.object({ name: z.string().trim().min(1).max(200), phone: z.string().trim().max(40).optional(), email: z.string().trim().email().or(z.literal('')).optional(), city: z.string().trim().max(100).optional() }).optional(),
+  notes: z.string().trim().max(2000).optional(),
+  lines: z.array(lineDto.extend({ unit: z.string().min(1), rate: z.number().nonnegative(), multiplier: z.number().positive().optional(), surchargePercent: z.number().min(0).max(100).optional(), ad: z.object({ heading: z.string().max(300), body: z.string().max(2000), lang: z.string().max(5) }).partial().optional() })).min(1).max(50),
+}).refine((d) => d.customerId || d.customer, { message: 'customer required' });
+const ORDER_STATUSES: Record<string, string[]> = { confirmed: ['inactive', 'completed'], inactive: ['confirmed', 'completed'], completed: ['confirmed'] };
+const sentDto = z.object({ sentOn: day, sentVia: z.string().trim().min(1).max(40), sentNote: z.string().trim().max(500).optional() });
 
 @Controller('v1')
 export class SalesController {
@@ -214,6 +224,69 @@ export class SalesController {
   @Perm('portal.customer') @Post('portal/customer/quotations/:id/reject')
   async portalReject(@Req() req: any, @Param('id') id: string) { await this.ownQuotation(req, id); const q = await this.reject(req, id); return { id: q.id, status: q.status }; }
 
+  /** The everyday path: one call from customer details and agreed rates to an active order, with no quotation. */
+  @Perm('sales.write') @Post('orders/quick')
+  async quickOrder(@Req() req: any, @Body() body: unknown) {
+    const dto = parse(quickDto, body);
+    const tenantId: string = req.user.tenantId;
+    if (dto.customerId) await this.assertOwn(req, dto.customerId);
+    if (dto.lines.some((l) => (l.discountPercent ?? 0) > DISCOUNT_APPROVAL_PERCENT) && !req.user.permissions.includes('sales.approve')) throw new ConflictException({ code: 'DISCOUNT_NEEDS_APPROVAL' });
+    const outlets = await this.db.select({ id: s.mediaOutlets.id }).from(s.mediaOutlets).where(and(eq(s.mediaOutlets.tenantId, tenantId), inArray(s.mediaOutlets.id, dto.lines.map((l) => l.outletId))));
+    if (outlets.length !== new Set(dto.lines.map((l) => l.outletId)).size) throw new NotFoundException({ code: 'NOT_FOUND' });
+    let priced;
+    try {
+      priced = dto.lines.map((l) => ({ l, breakdown: priceLine({ unit: l.unit as any, rate: l.rate, multiplier: l.multiplier ?? 1, premiumFixed: l.premiumFixed, surchargePercent: l.surchargePercent, discountPercent: l.discountPercent, quantity: l.quantity }) }));
+    } catch (e) {
+      if (e instanceof PricingError) throw new BadRequestException({ code: e.code, message: e.message });
+      throw e;
+    }
+    return this.db.transaction(async (tx) => {
+      let customerId = dto.customerId;
+      if (!customerId) {
+        const n = await nextNumber(tx, tenantId, 'customer');
+        const { email, ...fields } = dto.customer!;
+        const [c] = await tx.insert(s.customers).values({ ...fields, email: email || undefined, tenantId, number: `CUST-${String(n).padStart(5, '0')}`, salesOwnerId: req.user.id }).returning();
+        await this.audit(tx, req, 'customer', c.id, 'create', dto.customer);
+        customerId = c.id;
+      }
+      const n = await nextNumber(tx, tenantId, 'order');
+      const [order] = await tx.insert(s.orders).values({
+        tenantId, number: `MAMP-${new Date().getFullYear()}-${String(n).padStart(5, '0')}`, customerId, notes: dto.notes,
+        total: sumMoney(priced.map((p) => p.breakdown.net)), createdBy: req.user.id,
+      }).returning();
+      await tx.insert(s.placements).values(priced.map(({ l, breakdown }) => ({
+        tenantId, orderId: order.id, outletId: l.outletId, formatCode: l.formatCode, date: l.date, request: l,
+        snapshot: { sellingRuleId: null, supplierRuleId: null, currency: 'PKR', rate: String(l.rate), unit: l.unit, breakdown }, net: breakdown.net,
+      })));
+      await this.audit(tx, req, 'order', order.id, 'create', { lines: dto.lines.length });
+      return order;
+    });
+  }
+
+  @Perm('sales.write') @Post('orders/:id/status')
+  async orderStatus(@Req() req: any, @Param('id') id: string, @Body() body: unknown) {
+    const { status } = parse(z.object({ status: z.enum(['confirmed', 'inactive', 'completed']) }), body);
+    const from = Object.keys(ORDER_STATUSES).filter((k) => ORDER_STATUSES[k].includes(status));
+    return this.db.transaction(async (tx) => {
+      const [o] = await tx.update(s.orders).set({ status }).where(and(eq(s.orders.id, uuid(id)), eq(s.orders.tenantId, req.user.tenantId), inArray(s.orders.status, from))).returning();
+      if (!o) throw new ConflictException({ code: 'INVALID_STATUS' });
+      await this.audit(tx, req, 'order', o.id, status);
+      return o;
+    });
+  }
+
+  /** Delivery to the newspaper or channel happens offline. This keeps the record of what went where. */
+  @Perm('sales.write') @Post('placements/:id/sent')
+  async markSent(@Req() req: any, @Param('id') id: string, @Body() body: unknown) {
+    const dto = parse(sentDto, body);
+    return this.db.transaction(async (tx) => {
+      const [p] = await tx.update(s.placements).set(dto).where(and(eq(s.placements.id, uuid(id)), eq(s.placements.tenantId, req.user.tenantId))).returning();
+      if (!p) throw new NotFoundException({ code: 'NOT_FOUND' });
+      await this.audit(tx, req, 'order', p.orderId, 'sent_to_media', dto);
+      return redactCost(req.user, p);
+    });
+  }
+
   @Perm('sales.read') @Get('orders')
   orders(@Req() req: any) {
     return this.db.select({ order: s.orders, customerName: s.customers.name }).from(s.orders)
@@ -228,7 +301,8 @@ export class SalesController {
     await this.assertOwn(req, order.customerId);
     const rows = await this.db.select({ placement: s.placements, outletName: s.mediaOutlets.name }).from(s.placements)
       .innerJoin(s.mediaOutlets, eq(s.placements.outletId, s.mediaOutlets.id)).where(eq(s.placements.orderId, order.id));
-    return { order, placements: rows.map((r) => ({ ...r, placement: redactCost(req.user, r.placement) })) };
+    const [customer] = await this.db.select().from(s.customers).where(eq(s.customers.id, order.customerId));
+    return { order, customer, placements: rows.map((r) => ({ ...r, placement: redactCost(req.user, r.placement) })) };
   }
 
   @Perm('sales.approve') @Post('orders/:id/cancel')
@@ -238,7 +312,7 @@ export class SalesController {
         .innerJoin(s.placements, eq(s.customerInvoiceLines.placementId, s.placements.id)).where(eq(s.placements.orderId, uuid(id)));
       if (invoiced.length) throw new ConflictException({ code: 'ALREADY_INVOICED' });
       const [o] = await tx.update(s.orders).set({ status: 'cancelled' })
-        .where(and(eq(s.orders.id, uuid(id)), eq(s.orders.tenantId, req.user.tenantId), eq(s.orders.status, 'confirmed'))).returning();
+        .where(and(eq(s.orders.id, uuid(id)), eq(s.orders.tenantId, req.user.tenantId), inArray(s.orders.status, ['confirmed', 'inactive']))).returning();
       if (!o) throw new ConflictException({ code: 'INVALID_STATUS' });
       await tx.update(s.supplierBookings).set({ status: 'cancelled' })
         .where(and(eq(s.supplierBookings.orderId, o.id), inArray(s.supplierBookings.status, ['submitted', 'reschedule_requested', 'confirmed'])));

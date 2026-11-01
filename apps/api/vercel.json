@@ -1,1 +1,16 @@
-{ "functions": { "api/index.ts": { "maxDuration": 30 } }, "rewrites": [{ "source": "/(.*)", "destination": "/api" }] }
+{
+  "regions": [
+    "dub1"
+  ],
+  "functions": {
+    "api/index.ts": {
+      "maxDuration": 30
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/api"
+    }
+  ]
+}
