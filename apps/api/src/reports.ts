@@ -1,6 +1,6 @@
 import { BadRequestException, Controller, ForbiddenException, Get, Inject, NotFoundException, Param, Query, Req } from '@nestjs/common';
 import { sumMoney } from './pricing-engine';
-import { and, desc, eq, gte, inArray, lte, ne } from 'drizzle-orm';
+import { and, isNull, desc, eq, gte, inArray, lte, ne } from 'drizzle-orm';
 import { Perm } from './auth';
 import { DB, Db } from './db';
 import { REPORTS, runReport, totals } from './report-catalog';
@@ -51,8 +51,22 @@ export class ReportsController {
       this.db.select({ id: s.quotations.id }).from(s.quotations).where(and(eq(s.quotations.tenantId, tenantId), eq(s.quotations.status, 'pending_approval'))),
       this.openBookings(tenantId), this.unverified(tenantId),
     ]);
+    const [orders, unsent] = await Promise.all([
+      this.db.select({ status: s.orders.status }).from(s.orders).where(eq(s.orders.tenantId, tenantId)),
+      this.db.select({ id: s.placements.id }).from(s.placements).innerJoin(s.orders, eq(s.placements.orderId, s.orders.id))
+        .where(and(eq(s.placements.tenantId, tenantId), eq(s.orders.status, 'confirmed'), isNull(s.placements.sentOn))),
+    ]);
+    let outstanding: string | null = null;
+    if (req.user.permissions.includes('finance.read')) {
+      const [invoices, paid, credits] = await Promise.all([
+        this.db.select({ total: s.customerInvoices.total }).from(s.customerInvoices).where(eq(s.customerInvoices.tenantId, tenantId)),
+        this.db.select({ amount: s.customerPaymentAllocations.amount }).from(s.customerPaymentAllocations).where(eq(s.customerPaymentAllocations.tenantId, tenantId)),
+        this.db.select({ amount: s.customerCreditNotes.amount }).from(s.customerCreditNotes).where(eq(s.customerCreditNotes.tenantId, tenantId)),
+      ]);
+      outstanding = sumMoney([...invoices.map((i) => i.total), ...[...paid, ...credits].map((x) => `-${x.amount}`)]);
+    }
     return {
-      from: start, to: end,
+      from: start, to: end, activeOrders: orders.filter((o) => o.status === 'confirmed').length, completedOrders: orders.filter((o) => o.status === 'completed').length, notSent: unsent.length, outstanding,
       sales: sumMoney(rows.map((r) => r.p.net)), placements: rows.length, activeCampaigns: campaigns.length,
       pendingApprovals: pending.length, pendingBookings: bookings.length, proofsPending: proofs.length,
       monthly: totals(rows, (r) => r.p.date.slice(0, 7), (r) => r.p.net).sort((a, b) => a.name.localeCompare(b.name)),
@@ -105,12 +119,12 @@ export class ReportsController {
     const [soon, proofs, approvals] = await Promise.all([
       this.db.select({ p: s.placements, outletName: s.mediaOutlets.name }).from(s.placements)
         .innerJoin(s.orders, eq(s.placements.orderId, s.orders.id)).innerJoin(s.mediaOutlets, eq(s.placements.outletId, s.mediaOutlets.id))
-        .where(and(eq(s.placements.tenantId, tenantId), eq(s.placements.status, 'pending'), eq(s.orders.status, 'confirmed'), lte(s.placements.date, addDays(now, 3)))),
+        .where(and(eq(s.placements.tenantId, tenantId), eq(s.placements.status, 'pending'), isNull(s.placements.sentOn), eq(s.orders.status, 'confirmed'), lte(s.placements.date, addDays(now, 3)))),
       this.unverified(tenantId),
       this.db.select().from(s.quotations).where(and(eq(s.quotations.tenantId, tenantId), eq(s.quotations.status, 'pending_approval'))),
     ]);
     const alerts = [
-      ...soon.map((r) => ({ kind: 'unconfirmed_soon', title: `${r.outletName} · ${r.p.date}`, href: `/placements/${r.p.id}` })),
+      ...soon.map((r) => ({ kind: 'unconfirmed_soon', title: `${r.outletName} · ${r.p.date}`, href: `/orders/${r.p.orderId}` })),
       ...proofs.map((r) => ({ kind: 'proof_pending', title: `${r.outletName} · ${r.p.date}`, href: `/placements/${r.p.id}` })),
       ...approvals.map((q) => ({ kind: 'approval_needed', title: q.number, href: `/quotations/${q.id}` })),
     ];

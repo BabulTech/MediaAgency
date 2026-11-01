@@ -7,7 +7,7 @@ import { DictKey } from '@/lib/dict';
 import { useI18n } from '@/lib/i18n';
 
 type Group = { name: string; count: number; total: string };
-type Dash = { sales: string; placements: number; activeCampaigns: number; pendingApprovals: number; pendingBookings: number; proofsPending: number; monthly: Group[]; topCustomers: Group[]; topOutlets: Group[] };
+type Dash = { sales: string; activeOrders: number; completedOrders: number; notSent: number; outstanding: string | null; monthly: Group[]; topCustomers: Group[]; topOutlets: Group[] };
 type Alert = { kind: string; title: string; href: string };
 
 export default function DashboardPage() {
@@ -33,9 +33,10 @@ export default function DashboardPage() {
       </div>
       <div className="stats">
         <div className="stat lead"><span>{t('totalSales')}</span><strong>{pkr(data.sales)}</strong></div>
-        {(['placements', 'activeCampaigns', 'pendingApprovals', 'pendingBookings', 'proofsPending'] as const).map((k) => (
+        {(['activeOrders', 'notSent', 'completedOrders'] as const).map((k) => (
           <div className="stat" key={k}><span>{t(k)}</span><strong>{data[k]}</strong></div>
         ))}
+        {data.outstanding !== null && <div className="stat"><span>{t('outstanding')}</span><strong>{pkr(data.outstanding)}</strong></div>}
       </div>
       <Card title={t('alerts')}>
         {alerts.length === 0 && <p className="muted">{t('noRecords')}</p>}

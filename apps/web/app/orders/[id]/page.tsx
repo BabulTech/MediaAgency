@@ -25,6 +25,24 @@ const CHANNELS = ['in_person', 'email', 'whatsapp', 'courier'] as const;
 const METHODS = ['cash', 'bank_transfer', 'cheque', 'online'] as const;
 const EMPTY: Money = { invoices: [], payments: [], invoicedPlacements: [] };
 
+function CustomerForm({ customer, onDone }: { customer: Customer & { address?: string | null }; onDone: () => void }) {
+  const { t } = useI18n();
+  const [form, setForm] = useState({ name: customer.name, phone: customer.phone ?? '', email: customer.email ?? '', address: customer.address ?? '', city: customer.city ?? '', ntn: customer.ntn ?? '' });
+  const [failed, setFailed] = useState(false);
+  const field = (k: keyof typeof form, label: DictKey) => <Field label={t(label)}><input className="input" value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} /></Field>;
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    try { await api(`/customers/${customer.id}`, { method: 'PATCH', body: JSON.stringify(Object.fromEntries(Object.entries({ ...customer, ...form }).filter(([, v]) => v !== null))) }); setFailed(false); onDone(); }
+    catch { setFailed(true); }
+  }
+  return (
+    <form className="grid2" onSubmit={save}>
+      {field('name', 'name')}{field('phone', 'phone')}{field('email', 'email')}{field('city', 'city')}{field('address', 'address')}{field('ntn', 'ntn')}
+      <div className="span2"><button className="btn primary">{t('save')}</button>{failed && <p className="error">{t('saveFailed')}</p>}</div>
+    </form>
+  );
+}
+
 function SentForm({ id, onDone }: { id: string; onDone: () => void }) {
   const { t } = useI18n();
   const [sentOn, setSentOn] = useState(today());
@@ -85,9 +103,8 @@ export default function OrderPage() {
       <h1>{order.number}</h1>
       <Status value={order.status === 'confirmed' ? 'active' : order.status} />
       {message && <p className="error">{message}</p>}
-      <Card title={t('customer')}>
-        <Row label={t('name')} value={customer.name} />
-        {customer.phone && <Row label={t('phone')} value={customer.phone} />}
+      <Card title={t('customerOnInvoice')}>
+        <CustomerForm key={version} customer={customer} onDone={refresh} />
         {order.notes && <p className="muted">{order.notes}</p>}
       </Card>
       <Card title={t('orderStatus')}>
@@ -116,7 +133,7 @@ export default function OrderPage() {
           {money.invoices.map(({ invoice: i, balance }) => (
             <div className="row" key={i.id}>
               <span><b>{i.number}</b><br /><small className="muted">{pkr(i.total)} · {t('balanceDue')} {pkr(balance)}</small></span>
-              <a className="btn" href={`/print/invoice/${i.id}`} target="_blank"><Printer size={16} /> {t('printPdf')}</a>
+              <a className="btn" href={`/print/invoice/${i.id}`} target="_blank"><Printer size={16} /> {t('printInvoice')}</a>
             </div>
           ))}
           {money.payments.map((p) => <Row key={p.id} label={`${p.date} · ${t(p.method as DictKey) ?? p.method}${p.reference ? ` · ${p.reference}` : ''}`} value={pkr(p.amount)} />)}

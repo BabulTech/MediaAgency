@@ -5,6 +5,7 @@ import { Newspaper, Plus, Shield, Upload, Settings, Bell, BarChart3, Menu, Calen
 import { ReactNode, useEffect, useState } from 'react';
 import { api, isPortalOnly, Me, onBusy } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
+import { DictKey } from '@/lib/dict';
 import { useI18n } from '@/lib/i18n';
 
 const NAV = [
@@ -33,15 +34,16 @@ export function Shell({ children }: { children: ReactNode }) {
   const path = usePathname();
   const isLogin = path === '/login' || path === '/reset-password';
   const [me, setMe] = useState<Me | null>(null);
-  const [alerts, setAlerts] = useState(0);
+  const [alerts, setAlerts] = useState<{ kind: string; title: string; href: string }[]>([]);
+  const [bell, setBell] = useState(false);
   const [more, setMore] = useState(false);
   const [showNav, setShowNav] = useState(false);
   const focus = path === '/orders/new' && !showNav;
   const portal = isPortalOnly(me);
   useEffect(() => { if (!isLogin) api<Me>('/auth/me').then(setMe).catch(() => setMe(null)); }, [isLogin]);
-  useEffect(() => { setMore(false); setShowNav(false); }, [path]);
+  useEffect(() => { setMore(false); setShowNav(false); setBell(false); }, [path]);
   useEffect(() => { if (portal && path !== '/portal' && !path.startsWith('/print')) window.location.href = '/portal'; }, [portal, path]);
-  useEffect(() => { if (!isLogin && me && !portal) api<unknown[]>('/alerts').then((a) => setAlerts(a.length)).catch(() => setAlerts(0)); }, [isLogin, path, me, portal]);
+  useEffect(() => { if (!isLogin && me && !portal) api<{ kind: string; title: string; href: string }[]>('/alerts').then(setAlerts).catch(() => setAlerts([])); }, [isLogin, path, me, portal]);
   const logout = async () => { await supabase.auth.signOut(); window.location.href = '/login'; };
   const items = portal ? [{ href: '/portal', key: 'portal', icon: Users } as const] : [...NAV,
     ...(me?.permissions.includes('finance.read') ? [{ href: '/finance', key: 'finance', icon: Landmark } as const] : []),
@@ -60,7 +62,13 @@ export function Shell({ children }: { children: ReactNode }) {
           {path === '/orders/new' && <button type="button" className="btn icon desktop-only" aria-label={t('more')} onClick={() => setShowNav(!showNav)}><Menu size={18} /></button>}
           <div className="actions">
             {!portal && <Link className="btn primary neworder" href="/orders/new" aria-label={t('newOrder')}><Newspaper size={18} /><Plus size={14} /><span>{t('newOrder')}</span></Link>}
-            <Link className="btn icon bell" href="/dashboard" aria-label={t('alerts')}><Bell size={18} />{alerts > 0 && <span>{alerts}</span>}</Link>
+            <div className="bellwrap">
+              <button type="button" className="btn icon bell" aria-label={t('alerts')} aria-expanded={bell} onClick={() => setBell(!bell)}><Bell size={18} />{alerts.length > 0 && <span>{alerts.length}</span>}</button>
+              {bell && <div className="bellmenu">
+                {alerts.length === 0 && <p className="muted">{t('noRecords')}</p>}
+                {alerts.map((a, i) => <Link key={i} className="row" href={a.href} onClick={() => setBell(false)}><span>{t(a.kind as DictKey)}<br /><small className="muted">{a.title}</small></span></Link>)}
+              </div>}
+            </div>
             <button type="button" className="btn" onClick={toggleLang}>{t('language')}</button>
             <button type="button" className="btn icon" aria-label={t('theme')} onClick={toggleTheme}>{theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}</button>
             <button type="button" className="btn icon" aria-label={t('logout')} title={t('logout')} onClick={logout}><LogOut size={18} /></button>
