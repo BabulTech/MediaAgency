@@ -32,11 +32,13 @@ export default function NewOrderPage() {
   const { data: customers } = useLoad(() => api<Customer[]>('/customers'), [] as Customer[]);
 
   const matches = customers.filter((c) => `${c.name} ${c.phone ?? ''} ${c.number}`.toLowerCase().includes(search.toLowerCase())).slice(0, 6);
-  const current = draft?.outletId && draft.total ? { ...draft, date } : null;
+  const current = draft?.total ? { ...draft, date } : null;
+  const needsOutlet = !!current && !current.outletId;
   const total = [...cart, ...(current ? [current] : [])].reduce((sum, l) => sum + Number(l.total), 0);
 
   function addAnother() {
-    if (!current) return;
+    if (!current || needsOutlet) { setMessage(t('pickOutlet')); return; }
+    setMessage('');
     setCart([...cart, current]);
     setDraft(null);
     setRound(round + 1);
@@ -44,7 +46,7 @@ export default function NewOrderPage() {
 
   async function generate() {
     const lines = [...cart, ...(current ? [current] : [])];
-    if (!lines.length) { setMessage(t('pickOutlet')); return; }
+    if (!lines.length || needsOutlet) { setMessage(t('pickOutlet')); return; }
     setBusy(true); setMessage('');
     try {
       const body = {
@@ -100,19 +102,19 @@ export default function NewOrderPage() {
             <span className="row-end"><b>{pkr(l.total!)}</b><button type="button" className="btn icon" aria-label={t('remove')} onClick={() => setCart(cart.filter((_, x) => x !== i))}><X size={16} /></button></span>
           </div>
         ))}
-        {current && <div className="row"><span><b>{current.outletName}</b><br /><small className="muted">{t(current.formatCode as DictKey) ?? current.formatCode} · {current.date}</small></span><b>{pkr(current.total!)}</b></div>}
+        {current && <div className="row"><span><b>{current.outletName || t('outlet')}</b><br /><small className="muted">{t(current.formatCode as DictKey) ?? current.formatCode} · {current.date}</small></span><b>{pkr(current.total!)}</b></div>}
         {!current && <p className="muted">{t('pickOutlet')}</p>}
         <Field label={t('notes')}><textarea className="input" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
         <div className="quick">
-          <button type="button" className="btn" disabled={!current} onClick={addAnother}>{t('addAnotherAd')}</button>
+          <button type="button" className="btn" onClick={addAnother}>{t('addAnotherAd')}</button>
         </div>
       </Card>
       </div>
       <div className="stack order-side">
       <Card>
         <Result label={t('orderTotal')} value={pkr(String(total))} />
-        {message && <p className="error">{message}</p>}
-        <button type="button" className="btn primary order-go" disabled={busy || (!current && !cart.length)} onClick={generate}>{t('generateOrder')}</button>
+        {(message || needsOutlet || !current) && <p className="error">{message || t('pickOutlet')}</p>}
+        <button type="button" className="btn primary order-go" disabled={busy} onClick={generate}>{t('generateOrder')}</button>
       </Card>
       <div id="order-preview" />
       </div>

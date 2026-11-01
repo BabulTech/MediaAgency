@@ -39,7 +39,7 @@ export function TvCalculator({ onDraft }: { onDraft?: (d: AdDraft | null) => voi
     } catch { return null; }
   }, [unit, rate, multiplier, discountPercent, durationSeconds, spots, periods]);
 
-  const draft = onDraft && outlet ? { outletId: outlet.id, outletName: outlet.name, formatCode: format, timeBandCode: band, unit, rate, multiplier, discountPercent, quantity: Object.fromEntries(Object.entries({ durationSeconds, spots, periods }).filter(([, v]) => Number.isFinite(v))), ad: { heading: ad.heading, body: ad.body, lang: ad.lang }, total: price?.total ?? null } : null;
+  const draft = onDraft ? { outletId: outlet?.id ?? '', outletName: outlet?.name ?? '', formatCode: format, timeBandCode: band, unit, rate, multiplier, discountPercent, quantity: Object.fromEntries(Object.entries({ durationSeconds, spots, periods }).filter(([, v]) => Number.isFinite(v))), ad: { heading: ad.heading, body: ad.body, lang: ad.lang }, total: price?.total ?? null } : null;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { onDraft?.(draft); }, [JSON.stringify(draft)]);
   const byPeriod = unit === 'per_day' || unit === 'per_week' || unit === 'per_month';

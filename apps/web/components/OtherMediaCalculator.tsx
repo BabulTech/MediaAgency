@@ -27,7 +27,7 @@ export function OtherMediaCalculator({ onDraft }: { onDraft?: (d: AdDraft | null
     try { return priceLine({ unit, rate, premiumFixed, discountPercent, quantity: { durationSeconds, spots, periods, impressions, clicks, views } }); } catch { return null; }
   }, [unit, rate, premiumFixed, discountPercent, durationSeconds, spots, periods, impressions, clicks, views]);
 
-  const draft = onDraft && outlet ? { outletId: outlet.id, outletName: outlet.name, formatCode: format, unit, rate, premiumFixed, discountPercent, quantity: Object.fromEntries(Object.entries({ durationSeconds, spots, periods, impressions, clicks, views }).filter(([, v]) => Number.isFinite(v))), total: price?.total ?? null } : null;
+  const draft = onDraft ? { outletId: outlet?.id ?? '', outletName: outlet?.name ?? '', formatCode: format, unit, rate, premiumFixed, discountPercent, quantity: Object.fromEntries(Object.entries({ durationSeconds, spots, periods, impressions, clicks, views }).filter(([, v]) => Number.isFinite(v))), total: price?.total ?? null } : null;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { onDraft?.(draft); }, [JSON.stringify(draft)]);
   const change = (k: OtherKind) => { setKind(k); setFormat(OTHER_FORMATS[k][0]); setUnit(MEDIA_UNITS[k][0]); };
