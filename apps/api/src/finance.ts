@@ -78,10 +78,15 @@ export class FinanceController {
       .where(and(eq(s.customerInvoices.id, uuid(id)), eq(s.customerInvoices.tenantId, tenantId), customerId ? eq(s.customerInvoices.customerId, customerId) : undefined));
     if (!r) throw new NotFoundException({ code: 'NOT_FOUND' });
     const lines = await this.db.select().from(s.customerInvoiceLines).where(eq(s.customerInvoiceLines.invoiceId, r.i.id));
+    const placed = await this.db.select({ orderNumber: s.orders.number, outletName: s.mediaOutlets.name, formatCode: s.placements.formatCode, date: s.placements.date, net: s.placements.net, request: s.placements.request, snapshot: s.placements.snapshot })
+      .from(s.customerInvoiceLines).innerJoin(s.placements, eq(s.customerInvoiceLines.placementId, s.placements.id)).innerJoin(s.orders, eq(s.placements.orderId, s.orders.id)).innerJoin(s.mediaOutlets, eq(s.placements.outletId, s.mediaOutlets.id))
+      .where(eq(s.customerInvoiceLines.invoiceId, r.i.id));
+    // Customer-facing: only pricing fields are copied, so supplier cost and margin never leave.
+    const ads = placed.map(({ snapshot, ...p }) => { const b = (snapshot as any)?.breakdown ?? {}; return { ...p, snapshot: { unit: (snapshot as any)?.unit, rate: (snapshot as any)?.rate, breakdown: { base: b.base, surcharge: b.surcharge, premium: b.premium, discount: b.discount } } }; });
     const balance = (await this.invoicesWithBalance(tenantId)).find((x) => x.invoice.id === r.i.id)!.balance;
     const payments = await this.db.select({ date: s.customerPayments.date, method: s.customerPayments.method, reference: s.customerPayments.reference, amount: s.customerPaymentAllocations.amount }).from(s.customerPaymentAllocations)
       .innerJoin(s.customerPayments, eq(s.customerPaymentAllocations.paymentId, s.customerPayments.id)).where(eq(s.customerPaymentAllocations.invoiceId, r.i.id));
-    return { payments, customer: { phone: r.customer.phone, email: r.customer.email, address: r.customer.address, city: r.customer.city, ntn: r.customer.ntn }, agency: r.tenant.name, company: { address: r.tenant.address, phone: r.tenant.phone, email: r.tenant.email, ntn: r.tenant.ntn, bankDetails: r.tenant.bankDetails }, number: r.i.number, date: r.i.invoiceDate, dueDate: r.i.dueDate, party: r.party, subtotal: r.i.subtotal, tax: r.i.tax, total: r.i.total,
+    return { ads, payments, customer: { phone: r.customer.phone, email: r.customer.email, address: r.customer.address, city: r.customer.city, ntn: r.customer.ntn }, agency: r.tenant.name, company: { address: r.tenant.address, phone: r.tenant.phone, email: r.tenant.email, ntn: r.tenant.ntn, bankDetails: r.tenant.bankDetails }, number: r.i.number, date: r.i.invoiceDate, dueDate: r.i.dueDate, party: r.party, subtotal: r.i.subtotal, tax: r.i.tax, total: r.i.total,
       paid: sumMoney([r.i.total, `-${balance}`]), balance, lines: lines.map((l) => ({ description: l.description, amount: l.amount })) };
   }
   @Perm('finance.read') @Get('finance/invoices/:id/document') document(@Req() req: any, @Param('id') id: string) { return this.invoiceDocument(req.user.tenantId, id); }

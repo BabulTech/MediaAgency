@@ -3,13 +3,14 @@ import { FormEvent, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { Printer } from 'lucide-react';
+import { AdBreakdown, AdLine } from '@/components/AdBreakdown';
 import { Card, Field, NumberField, Result, Row, Select, Status, useLoad } from '@/components/ui';
 import { api, Customer, Me } from '@/lib/api';
 import { DictKey } from '@/lib/dict';
 import { History } from '@/components/History';
 import { useI18n } from '@/lib/i18n';
 
-type Placement = { id: string; formatCode: string; date: string; net: string; status: string; sentOn: string | null; sentVia: string | null; sentNote: string | null; request: { ad?: { heading?: string } } };
+type Placement = { id: string; formatCode: string; date: string; net: string; status: string; sentOn: string | null; sentVia: string | null; sentNote: string | null; request?: AdLine['request']; snapshot?: AdLine['snapshot'] };
 type Detail = {
   order: { number: string; status: string; total: string; notes: string | null };
   customer: Customer;
@@ -71,6 +72,7 @@ export default function OrderPage() {
   const [sending, setSending] = useState('');
   const [taxPercent, setTax] = useState(0);
   const [dueDate, setDue] = useState(today());
+  const [invoiceDate, setInvoiceDate] = useState(today());
   const [pay, setPay] = useState({ amount: 0, date: today(), method: 'cash' as (typeof METHODS)[number], reference: '' });
   const { data, error } = useLoad<Detail | null>(() => api<Detail>(`/orders/${id}`), null, [version]);
   const { data: me } = useLoad<Me | null>(() => api<Me>('/auth/me'), null);
@@ -82,6 +84,7 @@ export default function OrderPage() {
   const refresh = () => { setSending(''); setVersion((v) => v + 1); };
   const open = money.invoices.find((i) => Number(i.balance) > 0);
   const uninvoiced = placements.filter((p) => !money.invoicedPlacements.includes(p.placement.id));
+  const subtotal = uninvoiced.reduce((sum, p) => sum + Number(p.placement.net), 0);
 
   async function run(path: string, body: unknown = {}) {
     setMessage('');
@@ -118,10 +121,10 @@ export default function OrderPage() {
       <Card title={t('adsAndDelivery')}>
         {placements.map(({ placement: p, outletName }) => (
           <div key={p.id}>
+            <AdBreakdown line={{ ...(p as unknown as AdLine), outletName }} />
             <div className="row">
-              <span><Link href={`/placements/${p.id}`}><b>{outletName}</b></Link><br /><small className="muted">{t(p.formatCode as DictKey) ?? p.formatCode} · {p.date}{p.request?.ad?.heading ? ` · ${p.request.ad.heading}` : ''}</small><br />
-                <small className="muted">{p.sentOn ? `${t('sentOn')} ${p.sentOn} · ${t(p.sentVia as DictKey) ?? p.sentVia}${p.sentNote ? ` · ${p.sentNote}` : ''}` : t('notSentYet')}</small></span>
-              <span className="row-end"><b>{pkr(p.net)}</b><button type="button" className="btn" onClick={() => setSending(sending === p.id ? '' : p.id)}>{t('markSentMedia')}</button></span>
+              <span><small className="muted">{p.sentOn ? `${t('sentOn')} ${p.sentOn} · ${t(p.sentVia as DictKey) ?? p.sentVia}${p.sentNote ? ` · ${p.sentNote}` : ''}` : t('notSentYet')}</small></span>
+              <span className="row-end"><button type="button" className="btn" onClick={() => setSending(sending === p.id ? '' : p.id)}>{t('markSentMedia')}</button></span>
             </div>
             {sending === p.id && <SentForm id={p.id} onDone={refresh} />}
           </div>
@@ -139,9 +142,14 @@ export default function OrderPage() {
           {money.payments.map((p) => <Row key={p.id} label={`${p.date} · ${t(p.method as DictKey) ?? p.method}${p.reference ? ` · ${p.reference}` : ''}`} value={pkr(p.amount)} />)}
           {uninvoiced.length > 0 && (order.status === 'confirmed' || order.status === 'completed') && (
             <div className="grid2 mt">
+              <Field label={t('invoiceDate')}><input className="input" type="date" dir="ltr" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} /></Field>
               <NumberField label={t('taxPercent')} value={taxPercent} onChange={setTax} />
               <Field label={t('dueDate')}><input className="input" type="date" dir="ltr" value={dueDate} onChange={(e) => setDue(e.target.value)} /></Field>
-              <div className="span2"><button type="button" className="btn primary" onClick={() => run(`/finance/orders/${id}/invoice`, { invoiceDate: today(), dueDate, taxPercent: taxPercent || 0 })}>{t('generateInvoice')}</button></div>
+              <div className="span2">
+                <Row label={t('subtotal')} value={pkr(String(subtotal))} />
+                <Row label={t('taxPercent')} value={pkr(String(subtotal * (taxPercent || 0) / 100))} />
+                <Result label={t('invoiceTotal')} value={pkr(String(subtotal * (1 + (taxPercent || 0) / 100)))} />
+                <button type="button" className="btn primary" onClick={() => run(`/finance/orders/${id}/invoice`, { invoiceDate, dueDate, taxPercent: taxPercent || 0 })}>{t('generateInvoice')}</button></div>
             </div>
           )}
           {open && (

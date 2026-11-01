@@ -241,3 +241,11 @@ a.row:hover { background:var(--surface2); }
 }
 .bellwrap { position:relative; }
 .bellmenu { position:absolute; inset-block-start:calc(100% + 6px); inset-inline-end:0; width:min(320px, calc(100vw - 32px)); max-height:60vh; overflow:auto; padding:8px 12px; background:var(--surface); border:1px solid var(--line); border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.25); z-index:40; }
+.ad-breakdown { padding-block:10px; border-bottom:1px solid var(--line); break-inside:avoid; }
+.ad-breakdown h3 { margin:0 0 6px; font-size:1rem; }
+.ad-columns { display:grid; gap:4px 24px; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); }
+.ad-breakdown dl { margin:0; }
+.ad-breakdown dl div { display:flex; justify-content:space-between; gap:12px; padding-block:2px; }
+.ad-breakdown dt { color:var(--muted); }
+.ad-breakdown dd { margin:0; text-align:end; }
+.ad-net { font-weight:700; border-top:1px solid var(--line); margin-top:4px; }
