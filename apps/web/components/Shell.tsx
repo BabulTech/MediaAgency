@@ -35,9 +35,11 @@ export function Shell({ children }: { children: ReactNode }) {
   const [me, setMe] = useState<Me | null>(null);
   const [alerts, setAlerts] = useState(0);
   const [more, setMore] = useState(false);
+  const [showNav, setShowNav] = useState(false);
+  const focus = path === '/orders/new' && !showNav;
   const portal = isPortalOnly(me);
   useEffect(() => { if (!isLogin) api<Me>('/auth/me').then(setMe).catch(() => setMe(null)); }, [isLogin]);
-  useEffect(() => { setMore(false); }, [path]);
+  useEffect(() => { setMore(false); setShowNav(false); }, [path]);
   useEffect(() => { if (portal && path !== '/portal' && !path.startsWith('/print')) window.location.href = '/portal'; }, [portal, path]);
   useEffect(() => { if (!isLogin && me && !portal) api<unknown[]>('/alerts').then((a) => setAlerts(a.length)).catch(() => setAlerts(0)); }, [isLogin, path, me, portal]);
   const logout = async () => { await supabase.auth.signOut(); window.location.href = '/login'; };
@@ -50,11 +52,12 @@ export function Shell({ children }: { children: ReactNode }) {
   ));
   if (isLogin || path.startsWith('/print')) return <>{children}</>;
   return (
-    <div className="shell">
+    <div className={`shell${focus ? ' focus' : ''}`}>
       <aside className="sidebar"><b className="brand"><i>M</i>{t('appName')}</b><nav>{links}</nav></aside>
       <div className="main">
         <header className="topbar">
           <b className="brand mobile-only">{t('appName')}</b>
+          {path === '/orders/new' && <button type="button" className="btn icon desktop-only" aria-label={t('more')} onClick={() => setShowNav(!showNav)}><Menu size={18} /></button>}
           <div className="actions">
             {!portal && <Link className="btn primary neworder" href="/orders/new" aria-label={t('newOrder')}><Newspaper size={18} /><Plus size={14} /><span>{t('newOrder')}</span></Link>}
             <Link className="btn icon bell" href="/dashboard" aria-label={t('alerts')}><Bell size={18} />{alerts > 0 && <span>{alerts}</span>}</Link>

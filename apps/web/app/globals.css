@@ -223,3 +223,13 @@ a.row:hover { background:var(--surface2); }
 @keyframes spin { to { transform:rotate(360deg); } }
 @keyframes pulse { 50% { opacity:.4; } }
 @media (max-width:640px) { .neworder span { display:none; } }
+.shell.focus { grid-template-columns:minmax(0,1fr); }
+.shell.focus .sidebar { display:none; }
+.shell.focus .content { max-width:none; }
+.order-layout { display:grid; gap:16px; grid-template-columns:minmax(0,1fr); align-items:start; }
+#order-preview:empty { display:none; }
+@media (min-width:900px) {
+  .order-layout { grid-template-columns:minmax(0,1fr) minmax(360px,42%); }
+  .order-side { position:sticky; top:12px; max-height:calc(100vh - 24px); overflow:auto; }
+}
+@media (max-width:640px) { .desktop-only { display:none; } }

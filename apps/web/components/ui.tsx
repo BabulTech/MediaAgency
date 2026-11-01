@@ -1,11 +1,19 @@
 'use client';
 import { ChangeEvent, ReactNode, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { DictKey } from '@/lib/dict';
 import { useI18n } from '@/lib/i18n';
 
 export const Card = ({ title, children }: { title?: string; children: ReactNode }) => (
   <section className="card">{title && <h2 className="card-title">{title}</h2>}{children}</section>
 );
+
+/** Shows children in the order form's right panel when there is one, otherwise in place. */
+export function OrderSide({ children }: { children: ReactNode }) {
+  const [target, setTarget] = useState<HTMLElement | null>(null);
+  useEffect(() => { setTarget(document.getElementById('order-preview')); }, []);
+  return target ? createPortal(<Card>{children}</Card>, target) : <>{children}</>;
+}
 
 export const Field = ({ label, children }: { label: string; children: ReactNode }) => (
   <label className="field"><span>{label}</span>{children}</label>

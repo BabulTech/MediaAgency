@@ -84,6 +84,8 @@ export default function NewOrderPage() {
     <div className="stack">
       <h1>{t('newOrder')}</h1>
       <div className="row"><span><small className="muted">{t('step2')}</small><br /><b>{chosen?.name ?? typed.name}</b></span><button type="button" className="btn" onClick={() => setStep(1)}>{t('change')}</button></div>
+      <div className="order-layout">
+      <div className="stack">
       <Segmented value={media} onChange={(m) => { setMedia(m); setDraft(null); }} options={[{ value: 'newspaper', label: t('newspaper') }, { value: 'tv', label: t('tv') }, { value: 'other', label: t('otherMedia') }]} />
       <Field label={t('publishDate')}><input className="input" type="date" dir="ltr" required value={date} onChange={(e) => setDate(e.target.value)} /></Field>
       <div key={`${media}-${round}`}>
@@ -91,6 +93,9 @@ export default function NewOrderPage() {
         {media === 'tv' && <TvCalculator onDraft={setDraft} />}
         {media === 'other' && <OtherMediaCalculator onDraft={setDraft} />}
       </div>
+      </div>
+      <div className="stack order-side">
+      <div id="order-preview" />
       <Card title={t('orderSummary')}>
         {cart.map((l, i) => (
           <div className="row" key={i}>
@@ -108,6 +113,8 @@ export default function NewOrderPage() {
           <button type="button" className="btn primary" disabled={busy || (!current && !cart.length)} onClick={generate}>{t('generateOrder')}</button>
         </div>
       </Card>
+      </div>
+      </div>
     </div>
   );
 }

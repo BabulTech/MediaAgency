@@ -7,7 +7,7 @@ import { AD_SIZES, AdDraft, PAPER_FORMATS } from '@/lib/media';
 import { AdContent, AdFields, sampleAd } from './AdFields';
 import { NewspaperPreview, PagePosition, PageType } from './NewspaperPreview';
 import { OutletRatePicker } from './OutletRatePicker';
-import { Card, NumberField, Result, Row, Select, SliderField } from './ui';
+import { Card, NumberField, OrderSide, Result, Row, Select, SliderField } from './ui';
 
 const UNITS: PricingUnit[] = ['per_sq_cm', 'per_sq_inch', 'per_column_cm', 'per_word', 'per_line', 'fixed'];
 const POSITIONS: PagePosition[] = ['top_left', 'top_right', 'center', 'bottom_left', 'bottom_right', 'bottom_full'];
@@ -99,7 +99,7 @@ export function NewspaperCalculator({ onDraft }: { onDraft?: (d: AdDraft | null)
           <NumberField label={t('pageHeight')} value={pageHeightCm} onChange={setPageHeight} />
         </div>
         {tooBig && isSize && <p className="error">{t('tooBig')}</p>}
-        <NewspaperPreview {...{ ad, widthCm, heightCm, pageWidthCm, pageHeightCm, pageColumns, position, pageType }} colour={colour === 'colour'} />
+        <OrderSide><NewspaperPreview {...{ ad, widthCm, heightCm, pageWidthCm, pageHeightCm, pageColumns, position, pageType }} colour={colour === 'colour'} /></OrderSide>
         <p className="muted">{t('previewNote')}</p>
       </Card>
     </div>

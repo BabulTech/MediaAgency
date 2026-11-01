@@ -7,7 +7,7 @@ import { AdDraft, TV_DURATIONS } from '@/lib/media';
 import { AdContent, AdFields, sampleAd } from './AdFields';
 import { OutletRatePicker } from './OutletRatePicker';
 import { TvFormat, TvPreview } from './TvPreview';
-import { Card, NumberField, Result, Select, SliderField } from './ui';
+import { Card, NumberField, OrderSide, Result, Select, SliderField } from './ui';
 
 const FORMATS: { code: TvFormat; unit: PricingUnit }[] = [
   { code: 'tvc', unit: 'per_second' }, { code: 'ticker', unit: 'per_ticker' }, { code: 'breaking_ticker', unit: 'per_ticker_second' },
@@ -69,7 +69,7 @@ export function TvCalculator({ onDraft }: { onDraft?: (d: AdDraft | null) => voi
 
       <Card title={t('preview')}>
         <AdFields ad={ad} setAd={setAd} headingLabel={t('sponsor')} />
-        <div className="mt"><TvPreview format={format} ad={ad} durationSeconds={durationSeconds || 0} /></div>
+        <OrderSide><div className="mt"><TvPreview format={format} ad={ad} durationSeconds={durationSeconds || 0} /></div></OrderSide>
         <p className="muted">{t('previewNote')}</p>
       </Card>
     </div>
