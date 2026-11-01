@@ -93,9 +93,6 @@ export default function NewOrderPage() {
         {media === 'tv' && <TvCalculator onDraft={setDraft} />}
         {media === 'other' && <OtherMediaCalculator onDraft={setDraft} />}
       </div>
-      </div>
-      <div className="stack order-side">
-      <div id="order-preview" />
       <Card title={t('orderSummary')}>
         {cart.map((l, i) => (
           <div className="row" key={i}>
@@ -105,14 +102,19 @@ export default function NewOrderPage() {
         ))}
         {current && <div className="row"><span><b>{current.outletName}</b><br /><small className="muted">{t(current.formatCode as DictKey) ?? current.formatCode} · {current.date}</small></span><b>{pkr(current.total!)}</b></div>}
         {!current && <p className="muted">{t('pickOutlet')}</p>}
-        <Result label={t('orderTotal')} value={pkr(String(total))} />
         <Field label={t('notes')}><textarea className="input" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
-        {message && <p className="error">{message}</p>}
         <div className="quick">
           <button type="button" className="btn" disabled={!current} onClick={addAnother}>{t('addAnotherAd')}</button>
-          <button type="button" className="btn primary" disabled={busy || (!current && !cart.length)} onClick={generate}>{t('generateOrder')}</button>
         </div>
       </Card>
+      </div>
+      <div className="stack order-side">
+      <Card>
+        <Result label={t('orderTotal')} value={pkr(String(total))} />
+        {message && <p className="error">{message}</p>}
+        <button type="button" className="btn primary order-go" disabled={busy || (!current && !cart.length)} onClick={generate}>{t('generateOrder')}</button>
+      </Card>
+      <div id="order-preview" />
       </div>
       </div>
     </div>

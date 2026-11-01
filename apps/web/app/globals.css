@@ -233,3 +233,9 @@ a.row:hover { background:var(--surface2); }
   .order-side { position:sticky; top:12px; max-height:calc(100vh - 24px); overflow:auto; }
 }
 @media (max-width:640px) { .desktop-only { display:none; } }
+.order-go { width:100%; margin-top:8px; }
+@media (min-width:900px) {
+  .order-side { overflow:hidden; max-height:none; }
+  /* Keeps the whole page visible beside the form: 33:53 is the standard page shape. */
+  #order-preview .paper { max-width:calc((100dvh - 300px) * 33 / 53); margin-block:0; }
+}
